@@ -1,0 +1,147 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TrackStatus {
+  missing
+  owned
+  available_on_azuracast
+  acquiring
+  needs_approval
+}
+
+enum AcquisitionSource {
+  lidarr
+  youtube
+}
+
+enum AcquisitionStatus {
+  pending
+  searching
+  downloading
+  importing
+  done
+  failed
+  awaiting_approval
+}
+
+model Artist {
+  id             String   @id @default(cuid())
+  name           String
+  normalizedName String
+  spotifyId      String?
+  musicbrainzId  String?
+  tracks         Track[]
+  createdAt      DateTime @default(now())
+
+  @@index([normalizedName])
+}
+
+model Track {
+  id              String      @id @default(cuid())
+  artist          Artist      @relation(fields: [artistId], references: [id])
+  artistId        String
+  title           String
+  normalizedTitle String
+  album           String?
+  durationSec     Int?
+  isrc            String?
+  status          TrackStatus @default(missing)
+
+  listItems        SongListItem[]
+  libraryFiles     LibraryFile[]
+  azuracastTracks  AzuracastTrack[]
+  acquisitionJobs  AcquisitionJob[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([normalizedTitle])
+  @@index([artistId])
+}
+
+model SongList {
+  id        String         @id @default(cuid())
+  name      String
+  items     SongListItem[]
+  createdAt DateTime       @default(now())
+}
+
+model SongListItem {
+  id       String   @id @default(cuid())
+  list     SongList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  listId   String
+  track    Track    @relation(fields: [trackId], references: [id])
+  trackId  String
+  position Int
+
+  @@unique([listId, trackId])
+  @@index([listId])
+}
+
+model LibraryFile {
+  id        String   @id @default(cuid())
+  track     Track?   @relation(fields: [trackId], references: [id])
+  trackId   String?
+  path      String   @unique
+  filename  String
+  sizeBytes Int
+  tags      Json?
+  scannedAt DateTime @default(now())
+
+  @@index([trackId])
+}
+
+model AzuracastTrack {
+  id             String   @id @default(cuid())
+  track          Track?   @relation(fields: [trackId], references: [id])
+  trackId        String?
+  azuracastSongId String
+  stationId      String
+  title          String
+  artistName     String
+  normalizedTitle  String
+  normalizedArtist String
+  lastSeenAt     DateTime @default(now())
+
+  @@unique([azuracastSongId, stationId])
+  @@index([trackId])
+}
+
+model AcquisitionJob {
+  id        String            @id @default(cuid())
+  track     Track             @relation(fields: [trackId], references: [id])
+  trackId   String
+  source    AcquisitionSource
+  status    AcquisitionStatus @default(pending)
+  attempts  Json              @default("[]")
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([trackId])
+  @@index([status])
+}
+
+model Settings {
+  id                   Int     @id @default(1)
+  prowlarrUrl          String?
+  prowlarrApiKey       String?
+  lidarrUrl            String?
+  lidarrApiKey         String?
+  azuracastUrl         String?
+  azuracastApiKey      String?
+  azuracastStationIds  String?
+  nasMountPath         String?
+  spotifyClientId      String?
+  spotifyClientSecret  String?
+  spotifyRedirectUri   String?
+  spotifyAccessToken   String?
+  spotifyRefreshToken  String?
+  fallbackTimeoutMins  Int     @default(30)
+}

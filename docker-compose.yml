@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: songfind
+      POSTGRES_PASSWORD: songfind
+      POSTGRES_DB: songfind
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      DATABASE_URL: postgresql://songfind:songfind@postgres:5432/songfind
+      REDIS_URL: redis://redis:6379
+      NAS_MOUNT_PATH: /mnt/nas-music
+      PORT: 3000
+    volumes:
+      - ${NAS_MOUNT_PATH:-./data/nas-music}:/mnt/nas-music
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres-data:
+  redis-data:
