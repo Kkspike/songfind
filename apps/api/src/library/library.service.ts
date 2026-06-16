@@ -9,12 +9,14 @@ export interface LibraryEntry {
   title: string;
   album: string | null;
   filename: string | null;
+  path: string | null;
   stationId: string | null;
 }
 
 interface RawLibraryFile {
   id: string;
   filename: string;
+  path: string;
   tags: unknown;
 }
 
@@ -28,7 +30,7 @@ export class LibraryService {
 
     const [nasFiles, azTracks] = await Promise.all([
       this.prisma.$queryRaw<RawLibraryFile[]>`
-        SELECT id, filename, tags
+        SELECT id, filename, path, tags
         FROM "LibraryFile"
         WHERE tags->>'normalizedArtist' LIKE ${like}
            OR tags->>'normalizedTitle'  LIKE ${like}
@@ -53,6 +55,7 @@ export class LibraryService {
         title: tags?.title ?? '',
         album: tags?.album ?? null,
         filename: f.filename,
+        path: f.path,
         stationId: null,
       };
     });
@@ -64,6 +67,7 @@ export class LibraryService {
       title: t.title,
       album: null,
       filename: null,
+      path: null,
       stationId: t.stationId,
     }));
 

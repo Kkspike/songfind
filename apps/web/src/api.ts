@@ -74,6 +74,7 @@ export interface LibraryEntry {
   title: string;
   album: string | null;
   filename: string | null;
+  path: string | null;
   stationId: string | null;
 }
 
@@ -144,6 +145,7 @@ export const api = {
 
   searchLibrary: (q?: string) =>
     request<LibraryEntry[]>(`/library${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  nasDownloadUrl: (id: string) => `${API_BASE}/library/${id}/download`,
 
   testLidarr: () => request<TestResult>('/settings/test/lidarr', { method: 'POST' }),
   testProwlarr: () => request<TestResult>('/settings/test/prowlarr', { method: 'POST' }),

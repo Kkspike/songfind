@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, type LibraryEntry } from '../api';
-import { SourceBadge } from '../components/Badge';
+
+type SourceFilter = 'all' | 'nas' | 'azuracast';
 
 export default function LibraryPage() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<LibraryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<SourceFilter>('all');
 
   const doSearch = useCallback(async (q: string) => {
     setLoading(true);
@@ -27,6 +29,7 @@ export default function LibraryPage() {
     doSearch(query);
   }
 
+  const filtered = filter === 'all' ? results : results.filter((r) => r.source === filter);
   const nasCount = results.filter((r) => r.source === 'nas').length;
   const azCount = results.filter((r) => r.source === 'azuracast').length;
 
@@ -34,7 +37,7 @@ export default function LibraryPage() {
     <div>
       <h1>Library</h1>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -47,37 +50,56 @@ export default function LibraryPage() {
         )}
       </form>
 
-      {error && <div className="alert alert-error">{error}</div>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
+        <div className="btn-row" style={{ gap: 4 }}>
+          {(['all', 'nas', 'azuracast'] as SourceFilter[]).map((f) => (
+            <button
+              key={f}
+              type="button"
+              className={filter === f ? 'btn-primary btn-sm' : 'btn-sm'}
+              onClick={() => setFilter(f)}
+            >
+              {f === 'all' ? `All (${results.length})` : f === 'nas' ? `NAS (${nasCount})` : `Azuracast (${azCount})`}
+            </button>
+          ))}
+        </div>
+        {!loading && results.length >= 200 && (
+          <span className="meta" style={{ marginBottom: 0 }}>
+            Showing up to 200 per source — refine your search
+          </span>
+        )}
+      </div>
 
-      {!loading && (
-        <p className="meta">
-          {results.length} result{results.length !== 1 ? 's' : ''} — {nasCount} on NAS, {azCount} on Azuracast
-          {results.length >= 200 && ' (showing up to 200 per source — refine your search to narrow down)'}
-        </p>
-      )}
+      {error && <div className="alert alert-error">{error}</div>}
       {loading && <p className="meta">Searching…</p>}
 
-      {!loading && results.length > 0 && (
+      {!loading && filtered.length > 0 && (
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Source</th>
+                <th style={{ width: 100 }}>Source</th>
                 <th>Artist</th>
                 <th>Title</th>
                 <th>Album</th>
-                <th>File / Station</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {results.map((r) => (
+              {filtered.map((r) => (
                 <tr key={`${r.source}-${r.id}`}>
-                  <td><SourceBadge source={r.source} /></td>
+                  <td>
+                    <SourceBadgeWithTooltip entry={r} />
+                  </td>
                   <td style={{ color: 'var(--text-heading)' }}>{r.artist}</td>
                   <td>{r.title}</td>
                   <td style={{ color: 'var(--text-muted)' }}>{r.album ?? '—'}</td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                    {r.filename ?? (r.stationId ? `Station: ${r.stationId}` : '—')}
+                  <td style={{ textAlign: 'right', width: 90 }}>
+                    {r.source === 'nas' && (
+                      <a href={api.nasDownloadUrl(r.id)} download={r.filename ?? undefined}>
+                        <button type="button" className="btn-sm">Download</button>
+                      </a>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -86,9 +108,30 @@ export default function LibraryPage() {
         </div>
       )}
 
+      {!loading && filtered.length === 0 && results.length > 0 && (
+        <p className="meta">No {filter} entries. Try a different filter.</p>
+      )}
+
       {!loading && results.length === 0 && (
         <p className="meta">No results. Try scanning your NAS or polling Azuracast in Settings.</p>
       )}
     </div>
+  );
+}
+
+function SourceBadgeWithTooltip({ entry }: { entry: LibraryEntry }) {
+  const isNas = entry.source === 'nas';
+  const tooltip = isNas
+    ? (entry.path ?? entry.filename ?? 'NAS file')
+    : entry.stationId ? `Station: ${entry.stationId}` : 'Azuracast';
+
+  return (
+    <span
+      className={`badge ${isNas ? 'badge-nas' : 'badge-azuracast'}`}
+      data-tooltip={tooltip}
+      style={{ cursor: 'default' }}
+    >
+      {isNas ? 'NAS' : 'Azuracast'}
+    </span>
   );
 }
