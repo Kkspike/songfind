@@ -10,6 +10,7 @@ export default function ListDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [acquireAll, setAcquireAll] = useState<{ done: number; total: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const requestSeq = useRef(0);
 
@@ -62,6 +63,19 @@ export default function ListDetailPage() {
     finally { setBusy((b) => ({ ...b, [trackId]: false })); }
   }
 
+  async function handleAcquireAll() {
+    if (!list) return;
+    const missing = list.items.filter((i) => i.track.status === 'missing');
+    if (!missing.length) return;
+    setAcquireAll({ done: 0, total: missing.length });
+    for (const item of missing) {
+      try { await api.acquireTrack(item.track.id); } catch { /* keep going */ }
+      setAcquireAll((p) => p ? { ...p, done: p.done + 1 } : null);
+    }
+    refresh();
+    setAcquireAll(null);
+  }
+
   async function handleCheckStatus(trackId: string) {
     setBusy((b) => ({ ...b, [trackId]: true }));
     try {
@@ -104,6 +118,18 @@ export default function ListDetailPage() {
           Tracks <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({list.items.length})</span>
         </h2>
         <div className="btn-row">
+          {list.items.some((i) => i.track.status === 'missing') && (
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleAcquireAll}
+              disabled={!!acquireAll}
+            >
+              {acquireAll
+                ? `Acquiring ${acquireAll.done}/${acquireAll.total}…`
+                : `Acquire all missing (${list.items.filter((i) => i.track.status === 'missing').length})`}
+            </button>
+          )}
           <a href={api.exportZipUrl(list.id)}>
             <button type="button">Export zip</button>
           </a>

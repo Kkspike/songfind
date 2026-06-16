@@ -1,15 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, type JobEntry, type PendingApproval, type YoutubeCandidate } from '../api';
-
-const STATUS_BADGE: Record<string, string> = {
-  pending:           'badge badge-missing',
-  searching:         'badge badge-acquiring',
-  downloading:       'badge badge-azuracast',
-  importing:         'badge badge-azuracast',
-  done:              'badge badge-owned',
-  failed:            'badge badge-error',
-  awaiting_approval: 'badge badge-approval',
-};
+import { JobStatusBadge } from '../components/Badge';
 
 function fmt(sec: number | null) {
   if (sec == null) return '—';
@@ -107,11 +98,7 @@ export default function ActivityPage() {
                         {job.source === 'lidarr' ? 'Lidarr' : 'YouTube'}
                       </span>
                     </td>
-                    <td>
-                      <span className={STATUS_BADGE[job.status] ?? 'badge badge-missing'}>
-                        {job.status.replace(/_/g, ' ')}
-                      </span>
-                    </td>
+                    <td><JobStatusBadge status={job.status} /></td>
                     <td style={{ color: 'var(--text-muted)' }}>{timeAgo(job.createdAt)}</td>
                     <td style={{ color: 'var(--text-muted)' }}>{timeAgo(job.updatedAt)}</td>
                   </tr>
