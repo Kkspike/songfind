@@ -39,6 +39,7 @@ import { LibraryModule } from './library/library.module';
         '/nas-scanner{/*path}',
         '/acquisition{/*path}',
         '/library{/*path}',
+        '/activity{/*path}',
       ],
     }),
   ],

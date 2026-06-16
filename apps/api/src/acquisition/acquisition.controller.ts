@@ -10,6 +10,11 @@ export class AcquisitionController {
     return this.acquisition.checkTimeouts();
   }
 
+  @Get('jobs')
+  listJobs() {
+    return this.acquisition.listJobs();
+  }
+
   @Get('pending')
   listPending() {
     return this.acquisition.listPendingApprovals();

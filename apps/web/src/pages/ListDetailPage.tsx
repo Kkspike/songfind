@@ -9,6 +9,7 @@ export default function ListDetailPage() {
   const [pastedText, setPastedText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [importSummary, setImportSummary] = useState<string | null>(null);
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const requestSeq = useRef(0);
 
@@ -52,6 +53,24 @@ export default function ListDetailPage() {
     refresh();
   }
 
+  async function handleAcquire(trackId: string) {
+    setBusy((b) => ({ ...b, [trackId]: true }));
+    try {
+      await api.acquireTrack(trackId);
+      refresh();
+    } catch (e) { setError(String(e)); }
+    finally { setBusy((b) => ({ ...b, [trackId]: false })); }
+  }
+
+  async function handleCheckStatus(trackId: string) {
+    setBusy((b) => ({ ...b, [trackId]: true }));
+    try {
+      await api.checkTrackStatus(trackId);
+      refresh();
+    } catch (e) { setError(String(e)); }
+    finally { setBusy((b) => ({ ...b, [trackId]: false })); }
+  }
+
   if (!list) return <p className="meta">Loading…</p>;
 
   return (
@@ -84,9 +103,11 @@ export default function ListDetailPage() {
         <h2 style={{ marginBottom: 0, textTransform: 'none', letterSpacing: 0, fontSize: 15 }}>
           Tracks <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({list.items.length})</span>
         </h2>
-        <a href={api.exportZipUrl(list.id)}>
-          <button type="button">Export zip</button>
-        </a>
+        <div className="btn-row">
+          <a href={api.exportZipUrl(list.id)}>
+            <button type="button">Export zip</button>
+          </a>
+        </div>
       </div>
 
       {list.items.length === 0 ? (
@@ -96,22 +117,48 @@ export default function ListDetailPage() {
           <table>
             <thead>
               <tr>
-                <th>#</th>
+                <th style={{ width: 36 }}>#</th>
                 <th>Artist</th>
                 <th>Title</th>
                 <th>Status</th>
-                <th></th>
+                <th style={{ width: 180 }}></th>
+                <th style={{ width: 80 }}></th>
               </tr>
             </thead>
             <tbody>
               {list.items.map((item) => (
                 <tr key={item.id}>
-                  <td style={{ color: 'var(--text-muted)', width: 40 }}>{item.position}</td>
+                  <td style={{ color: 'var(--text-muted)' }}>{item.position}</td>
                   <td style={{ color: 'var(--text-heading)' }}>{item.track.artist.name}</td>
                   <td>{item.track.title}</td>
                   <td><StatusBadge status={item.track.status} /></td>
+                  <td>
+                    {item.track.status === 'missing' && (
+                      <button
+                        className="btn-sm btn-primary"
+                        onClick={() => handleAcquire(item.track.id)}
+                        disabled={busy[item.track.id]}
+                      >
+                        {busy[item.track.id] ? 'Starting…' : 'Acquire'}
+                      </button>
+                    )}
+                    {item.track.status === 'acquiring' && (
+                      <button
+                        className="btn-sm"
+                        onClick={() => handleCheckStatus(item.track.id)}
+                        disabled={busy[item.track.id]}
+                      >
+                        {busy[item.track.id] ? 'Checking…' : 'Check status'}
+                      </button>
+                    )}
+                    {item.track.status === 'needs_approval' && (
+                      <Link to="/activity" style={{ fontSize: 13 }}>
+                        Review YouTube candidates →
+                      </Link>
+                    )}
+                  </td>
                   <td style={{ textAlign: 'right' }}>
-                    <button className="btn-danger" onClick={() => handleRemoveItem(item.id)}>
+                    <button className="btn-danger btn-sm" onClick={() => handleRemoveItem(item.id)}>
                       Remove
                     </button>
                   </td>

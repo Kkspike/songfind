@@ -45,6 +45,28 @@ export interface SongListDetail {
   items: SongListItem[];
 }
 
+export interface JobEntry {
+  id: string;
+  source: 'lidarr' | 'youtube';
+  status: string;
+  track: { id: string; title: string; artist: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface YoutubeCandidate {
+  videoId: string;
+  title: string;
+  uploader: string;
+  durationSec: number | null;
+}
+
+export interface PendingApproval {
+  jobId: string;
+  track: { id: string; title: string; artist: string };
+  candidates: YoutubeCandidate[] | undefined;
+}
+
 export interface LibraryEntry {
   id: string;
   source: 'nas' | 'azuracast';
@@ -106,6 +128,19 @@ export const api = {
   updateSettings: (dto: Partial<Settings>) =>
     request<Settings>('/settings', { method: 'PUT', body: JSON.stringify(dto) }),
   spotifyLoginUrl: () => `${API_BASE}/spotify/login`,
+
+  acquireTrack: (trackId: string) =>
+    request<unknown>(`/lidarr/acquire/${trackId}`, { method: 'POST' }),
+  checkTrackStatus: (trackId: string) =>
+    request<{ status: string; hasFile: boolean }>(`/lidarr/check/${trackId}`, { method: 'POST' }),
+
+  getJobs: () => request<JobEntry[]>('/acquisition/jobs'),
+  listPendingApprovals: () => request<PendingApproval[]>('/acquisition/pending'),
+  approveCandidate: (jobId: string, videoId: string) =>
+    request<{ status: string; trackStatus: string }>(
+      `/acquisition/${jobId}/approve`,
+      { method: 'POST', body: JSON.stringify({ videoId }) },
+    ),
 
   searchLibrary: (q?: string) =>
     request<LibraryEntry[]>(`/library${q ? `?q=${encodeURIComponent(q)}` : ''}`),

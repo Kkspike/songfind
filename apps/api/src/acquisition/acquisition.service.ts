@@ -60,6 +60,22 @@ export class AcquisitionService {
     return job;
   }
 
+  async listJobs() {
+    const jobs = await this.prisma.acquisitionJob.findMany({
+      include: { track: { include: { artist: true } } },
+      orderBy: { updatedAt: 'desc' },
+      take: 100,
+    });
+    return jobs.map((job) => ({
+      id: job.id,
+      source: job.source,
+      status: job.status,
+      track: { id: job.track.id, title: job.track.title, artist: job.track.artist.name },
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+    }));
+  }
+
   async listPendingApprovals() {
     const jobs = await this.prisma.acquisitionJob.findMany({
       where: { source: 'youtube', status: 'awaiting_approval' },

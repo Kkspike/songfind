@@ -2,6 +2,7 @@ import { NavLink, Route, Routes } from 'react-router-dom';
 import ListsPage from './pages/ListsPage';
 import ListDetailPage from './pages/ListDetailPage';
 import LibraryPage from './pages/LibraryPage';
+import ActivityPage from './pages/ActivityPage';
 import SettingsPage from './pages/SettingsPage';
 
 function App() {
@@ -19,6 +20,9 @@ function App() {
           <NavLink to="/library" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
             Library
           </NavLink>
+          <NavLink to="/activity" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+            Activity
+          </NavLink>
           <NavLink to="/settings" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
             Settings
           </NavLink>
@@ -29,6 +33,7 @@ function App() {
           <Route path="/" element={<ListsPage />} />
           <Route path="/lists/:id" element={<ListDetailPage />} />
           <Route path="/library" element={<LibraryPage />} />
+          <Route path="/activity" element={<ActivityPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>
