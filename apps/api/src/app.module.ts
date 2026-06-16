@@ -12,6 +12,7 @@ import { YoutubeFallbackModule } from './youtube-fallback/youtube-fallback.modul
 import { AcquisitionModule } from './acquisition/acquisition.module';
 import { SpotifyModule } from './spotify/spotify.module';
 import { SettingsModule } from './settings/settings.module';
+import { LibraryModule } from './library/library.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { SettingsModule } from './settings/settings.module';
     AcquisitionModule,
     SpotifyModule,
     SettingsModule,
+    LibraryModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', '..', 'web', 'dist'),
       exclude: [
@@ -36,6 +38,7 @@ import { SettingsModule } from './settings/settings.module';
         '/lidarr{/*path}',
         '/nas-scanner{/*path}',
         '/acquisition{/*path}',
+        '/library{/*path}',
       ],
     }),
   ],

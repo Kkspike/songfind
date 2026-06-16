@@ -45,6 +45,21 @@ export interface SongListDetail {
   items: SongListItem[];
 }
 
+export interface LibraryEntry {
+  id: string;
+  source: 'nas' | 'azuracast';
+  artist: string;
+  title: string;
+  album: string | null;
+  filename: string | null;
+  stationId: string | null;
+}
+
+export interface TestResult {
+  ok: boolean;
+  message: string;
+}
+
 export interface Settings {
   id: number;
   prowlarrUrl: string | null;
@@ -91,6 +106,13 @@ export const api = {
   updateSettings: (dto: Partial<Settings>) =>
     request<Settings>('/settings', { method: 'PUT', body: JSON.stringify(dto) }),
   spotifyLoginUrl: () => `${API_BASE}/spotify/login`,
+
+  searchLibrary: (q?: string) =>
+    request<LibraryEntry[]>(`/library${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+
+  testLidarr: () => request<TestResult>('/settings/test/lidarr', { method: 'POST' }),
+  testProwlarr: () => request<TestResult>('/settings/test/prowlarr', { method: 'POST' }),
+  testAzuracast: () => request<TestResult>('/settings/test/azuracast', { method: 'POST' }),
 
   triggerNasScan: () => request<unknown>('/nas-scanner/scan', { method: 'POST' }),
   triggerAzuracastPoll: () => request<unknown>('/azuracast/poll', { method: 'POST' }),

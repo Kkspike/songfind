@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, type Settings } from '../api';
+import { api, type Settings, type TestResult } from '../api';
 
 type FormState = Partial<Settings>;
 
@@ -8,6 +8,7 @@ export default function SettingsPage() {
   const [form, setForm] = useState<FormState | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, TestResult | 'loading'>>({});
 
   useEffect(() => {
     api.getSettings().then(setForm).catch((e) => setError(String(e)));
@@ -32,6 +33,27 @@ export default function SettingsPage() {
     } catch (e) {
       setError(String(e));
     }
+  }
+
+  async function testConnection(key: string, fn: () => Promise<TestResult>) {
+    setTestResults((prev) => ({ ...prev, [key]: 'loading' }));
+    try {
+      const result = await fn();
+      setTestResults((prev) => ({ ...prev, [key]: result }));
+    } catch (e) {
+      setTestResults((prev) => ({ ...prev, [key]: { ok: false, message: String(e) } }));
+    }
+  }
+
+  function TestBadge({ name }: { name: string }) {
+    const r = testResults[name];
+    if (!r) return null;
+    if (r === 'loading') return <span style={{ marginLeft: 8, color: '#888' }}>Testing…</span>;
+    return (
+      <span style={{ marginLeft: 8, color: r.ok ? 'green' : 'red', fontSize: 13 }}>
+        {r.ok ? '✓' : '✗'} {r.message}
+      </span>
+    );
   }
 
   async function runTrigger(label: string, fn: () => Promise<unknown>) {
@@ -62,9 +84,19 @@ export default function SettingsPage() {
         <br />
         <label>Lidarr API Key <input {...field('lidarrApiKey')} /></label>
         <br />
+        <button type="button" onClick={() => testConnection('lidarr', api.testLidarr)}>
+          Test Lidarr
+        </button>
+        <TestBadge name="lidarr" />
+        <br /><br />
         <label>Prowlarr URL <input {...field('prowlarrUrl')} /></label>
         <br />
         <label>Prowlarr API Key <input {...field('prowlarrApiKey')} /></label>
+        <br />
+        <button type="button" onClick={() => testConnection('prowlarr', api.testProwlarr)}>
+          Test Prowlarr
+        </button>
+        <TestBadge name="prowlarr" />
 
         <h2>Azuracast</h2>
         <label>Azuracast URL <input {...field('azuracastUrl')} /></label>
@@ -72,6 +104,11 @@ export default function SettingsPage() {
         <label>Azuracast API Key <input {...field('azuracastApiKey')} /></label>
         <br />
         <label>Station IDs (comma-separated) <input {...field('azuracastStationIds')} /></label>
+        <br />
+        <button type="button" onClick={() => testConnection('azuracast', api.testAzuracast)}>
+          Test Azuracast
+        </button>
+        <TestBadge name="azuracast" />
 
         <h2>NAS</h2>
         <label>NAS mount path <input {...field('nasMountPath')} /></label>

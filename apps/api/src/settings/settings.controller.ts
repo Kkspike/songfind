@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Put } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put } from '@nestjs/common';
 import { SettingsService } from './settings.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 
@@ -14,5 +14,20 @@ export class SettingsController {
   @Put()
   update(@Body() dto: UpdateSettingsDto) {
     return this.settings.update(dto);
+  }
+
+  @Post('test/lidarr')
+  testLidarr() {
+    return this.settings.testLidarr();
+  }
+
+  @Post('test/prowlarr')
+  testProwlarr() {
+    return this.settings.testProwlarr();
+  }
+
+  @Post('test/azuracast')
+  testAzuracast() {
+    return this.settings.testAzuracast();
   }
 }

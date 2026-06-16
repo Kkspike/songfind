@@ -1,17 +1,20 @@
 import { Link, Route, Routes } from 'react-router-dom';
 import ListsPage from './pages/ListsPage';
 import ListDetailPage from './pages/ListDetailPage';
+import LibraryPage from './pages/LibraryPage';
 import SettingsPage from './pages/SettingsPage';
 
 function App() {
   return (
     <>
       <nav>
-        <Link to="/">Lists</Link> | <Link to="/settings">Settings</Link>
+        <Link to="/">Lists</Link> | <Link to="/library">Library</Link> |{' '}
+        <Link to="/settings">Settings</Link>
       </nav>
       <Routes>
         <Route path="/" element={<ListsPage />} />
         <Route path="/lists/:id" element={<ListDetailPage />} />
+        <Route path="/library" element={<LibraryPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Routes>
     </>
