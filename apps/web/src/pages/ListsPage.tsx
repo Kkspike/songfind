@@ -33,23 +33,57 @@ export default function ListsPage() {
   return (
     <div>
       <h1>Lists</h1>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <form onSubmit={handleCreate}>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="New list name"
-        />
-        <button type="submit">Create list</button>
-      </form>
-      <ul>
-        {lists.map((list) => (
-          <li key={list.id}>
-            <Link to={`/lists/${list.id}`}>{list.name}</Link> ({list.itemCount} tracks){' '}
-            <button onClick={() => handleDelete(list.id)}>Delete</button>
-          </li>
-        ))}
-      </ul>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      <div className="card" style={{ marginBottom: 24 }}>
+        <form onSubmit={handleCreate} style={{ display: 'flex', gap: 10 }}>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="New list name…"
+            style={{ flex: 1 }}
+          />
+          <button type="submit" className="btn-primary">Create list</button>
+        </form>
+      </div>
+
+      {lists.length === 0 ? (
+        <p className="meta">No lists yet. Create one above.</p>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Tracks</th>
+                <th>Created</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {lists.map((list) => (
+                <tr key={list.id}>
+                  <td>
+                    <Link to={`/lists/${list.id}`} style={{ color: 'var(--text-heading)', fontWeight: 500 }}>
+                      {list.name}
+                    </Link>
+                  </td>
+                  <td style={{ color: 'var(--text-muted)' }}>{list.itemCount}</td>
+                  <td style={{ color: 'var(--text-muted)' }}>
+                    {new Date(list.createdAt).toLocaleDateString()}
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <button className="btn-danger" onClick={() => handleDelete(list.id)}>
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

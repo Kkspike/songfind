@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { api, type Settings, type TestResult } from '../api';
 
 type FormState = Partial<Settings>;
 
 export default function SettingsPage() {
   const [form, setForm] = useState<FormState | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+  const [saveMsg, setSaveMsg] = useState('');
   const [testResults, setTestResults] = useState<Record<string, TestResult | 'loading'>>({});
+  const [triggerStatus, setTriggerStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    api.getSettings().then(setForm).catch((e) => setError(String(e)));
+    api.getSettings().then(setForm).catch((e) => setSaveMsg(String(e)));
   }, []);
 
   function field(name: keyof FormState) {
@@ -29,9 +29,11 @@ export default function SettingsPage() {
       const { spotifyConnected, id, ...dto } = form;
       const updated = await api.updateSettings(dto);
       setForm(updated);
-      setStatus('Saved.');
+      setSaveStatus('saved');
+      setSaveMsg('Settings saved.');
     } catch (e) {
-      setError(String(e));
+      setSaveStatus('error');
+      setSaveMsg(String(e));
     }
   }
 
@@ -45,107 +47,164 @@ export default function SettingsPage() {
     }
   }
 
-  function TestBadge({ name }: { name: string }) {
+  function TestResult({ name }: { name: string }) {
     const r = testResults[name];
     if (!r) return null;
-    if (r === 'loading') return <span style={{ marginLeft: 8, color: '#888' }}>Testing…</span>;
-    return (
-      <span style={{ marginLeft: 8, color: r.ok ? 'green' : 'red', fontSize: 13 }}>
-        {r.ok ? '✓' : '✗'} {r.message}
-      </span>
-    );
+    if (r === 'loading') return <span className="test-loading">Testing…</span>;
+    return <span className={r.ok ? 'test-ok' : 'test-fail'}>{r.ok ? '✓' : '✗'} {r.message}</span>;
   }
 
   async function runTrigger(label: string, fn: () => Promise<unknown>) {
-    setStatus(`Running ${label}…`);
-    setError(null);
+    setTriggerStatus(`Running ${label}…`);
     try {
       const result = await fn();
-      setStatus(`${label} done: ${JSON.stringify(result)}`);
+      setTriggerStatus(`${label} done: ${JSON.stringify(result)}`);
     } catch (e) {
-      setError(String(e));
+      setTriggerStatus(`Error: ${String(e)}`);
     }
   }
 
-  if (!form) return <p>Loading…</p>;
+  if (!form) return <p className="meta">Loading…</p>;
 
   return (
     <div>
-      <p>
-        <Link to="/">&larr; Back to lists</Link>
-      </p>
       <h1>Settings</h1>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {status && <p>{status}</p>}
+
+      {saveStatus === 'saved' && <div className="alert alert-success">{saveMsg}</div>}
+      {saveStatus === 'error' && <div className="alert alert-error">{saveMsg}</div>}
 
       <form onSubmit={handleSave}>
-        <h2>Lidarr / Prowlarr</h2>
-        <label>Lidarr URL <input {...field('lidarrUrl')} /></label>
-        <br />
-        <label>Lidarr API Key <input {...field('lidarrApiKey')} /></label>
-        <br />
-        <button type="button" onClick={() => testConnection('lidarr', api.testLidarr)}>
-          Test Lidarr
-        </button>
-        <TestBadge name="lidarr" />
-        <br /><br />
-        <label>Prowlarr URL <input {...field('prowlarrUrl')} /></label>
-        <br />
-        <label>Prowlarr API Key <input {...field('prowlarrApiKey')} /></label>
-        <br />
-        <button type="button" onClick={() => testConnection('prowlarr', api.testProwlarr)}>
-          Test Prowlarr
-        </button>
-        <TestBadge name="prowlarr" />
 
-        <h2>Azuracast</h2>
-        <label>Azuracast URL <input {...field('azuracastUrl')} /></label>
-        <br />
-        <label>Azuracast API Key <input {...field('azuracastApiKey')} /></label>
-        <br />
-        <label>Station IDs (comma-separated) <input {...field('azuracastStationIds')} /></label>
-        <br />
-        <button type="button" onClick={() => testConnection('azuracast', api.testAzuracast)}>
-          Test Azuracast
-        </button>
-        <TestBadge name="azuracast" />
+        <div className="card">
+          <h2>Lidarr</h2>
+          <div className="form-grid-2">
+            <div className="form-field">
+              <label>URL</label>
+              <input {...field('lidarrUrl')} placeholder="https://lidarr.example.com" />
+            </div>
+            <div className="form-field">
+              <label>API Key</label>
+              <input {...field('lidarrApiKey')} placeholder="••••••••••••••••••••" />
+            </div>
+          </div>
+          <div className="btn-row">
+            <button type="button" className="btn-sm" onClick={() => testConnection('lidarr', api.testLidarr)}>
+              Test connection
+            </button>
+            <TestResult name="lidarr" />
+          </div>
+        </div>
 
-        <h2>NAS</h2>
-        <label>NAS mount path <input {...field('nasMountPath')} /></label>
+        <div className="card">
+          <h2>Prowlarr</h2>
+          <div className="form-grid-2">
+            <div className="form-field">
+              <label>URL</label>
+              <input {...field('prowlarrUrl')} placeholder="https://prowlarr.example.com" />
+            </div>
+            <div className="form-field">
+              <label>API Key</label>
+              <input {...field('prowlarrApiKey')} placeholder="••••••••••••••••••••" />
+            </div>
+          </div>
+          <div className="btn-row">
+            <button type="button" className="btn-sm" onClick={() => testConnection('prowlarr', api.testProwlarr)}>
+              Test connection
+            </button>
+            <TestResult name="prowlarr" />
+          </div>
+        </div>
 
-        <h2>Spotify</h2>
-        <p>Status: {form.spotifyConnected ? 'Connected' : 'Not connected'}</p>
-        <label>Client ID <input {...field('spotifyClientId')} /></label>
-        <br />
-        <label>Client Secret <input {...field('spotifyClientSecret')} /></label>
-        <br />
-        <label>Redirect URI <input {...field('spotifyRedirectUri')} /></label>
-        <br />
-        <a href={api.spotifyLoginUrl()}>
-          <button type="button">Connect Spotify</button>
-        </a>
+        <div className="card">
+          <h2>Azuracast</h2>
+          <div className="form-grid-2">
+            <div className="form-field">
+              <label>URL</label>
+              <input {...field('azuracastUrl')} placeholder="https://radio.example.com" />
+            </div>
+            <div className="form-field">
+              <label>API Key</label>
+              <input {...field('azuracastApiKey')} placeholder="••••••••••••••••••••" />
+            </div>
+          </div>
+          <div className="form-field" style={{ maxWidth: 360 }}>
+            <label>Station IDs (comma-separated)</label>
+            <input {...field('azuracastStationIds')} placeholder="smj, station2" />
+          </div>
+          <div className="btn-row">
+            <button type="button" className="btn-sm" onClick={() => testConnection('azuracast', api.testAzuracast)}>
+              Test connection
+            </button>
+            <TestResult name="azuracast" />
+          </div>
+        </div>
 
-        <h2>Acquisition</h2>
-        <label>Fallback timeout (minutes) <input type="number" {...field('fallbackTimeoutMins')} /></label>
+        <div className="card">
+          <h2>NAS</h2>
+          <div className="form-field" style={{ maxWidth: 400 }}>
+            <label>Mount path (inside the container)</label>
+            <input {...field('nasMountPath')} placeholder="/mnt/nas-music" />
+          </div>
+        </div>
 
-        <div>
-          <button type="submit">Save settings</button>
+        <div className="card">
+          <h2>Spotify</h2>
+          <p className="meta" style={{ marginBottom: 12 }}>
+            Status: {form.spotifyConnected
+              ? <span className="test-ok">Connected</span>
+              : <span style={{ color: 'var(--text-muted)' }}>Not connected</span>}
+          </p>
+          <div className="form-grid-2">
+            <div className="form-field">
+              <label>Client ID</label>
+              <input {...field('spotifyClientId')} />
+            </div>
+            <div className="form-field">
+              <label>Client Secret</label>
+              <input {...field('spotifyClientSecret')} placeholder="••••••••••••••••••••" />
+            </div>
+          </div>
+          <div className="form-field" style={{ maxWidth: 480 }}>
+            <label>Redirect URI</label>
+            <input {...field('spotifyRedirectUri')} placeholder="http://localhost:3000/spotify/callback" />
+          </div>
+          <div className="btn-row">
+            <a href={api.spotifyLoginUrl()}>
+              <button type="button" className="btn-sm">Connect Spotify</button>
+            </a>
+          </div>
+        </div>
+
+        <div className="card">
+          <h2>Acquisition</h2>
+          <div className="form-field" style={{ maxWidth: 200 }}>
+            <label>YouTube fallback timeout (minutes)</label>
+            <input type="number" {...field('fallbackTimeoutMins')} min={1} />
+          </div>
+        </div>
+
+        <div className="btn-row" style={{ marginBottom: 32 }}>
+          <button type="submit" className="btn-primary">Save settings</button>
         </div>
       </form>
 
-      <h2>Manual actions</h2>
-      <button type="button" onClick={() => runTrigger('NAS scan', api.triggerNasScan)}>
-        Scan NAS now
-      </button>{' '}
-      <button type="button" onClick={() => runTrigger('Azuracast poll', api.triggerAzuracastPoll)}>
-        Poll Azuracast now
-      </button>{' '}
-      <button
-        type="button"
-        onClick={() => runTrigger('Acquisition timeout check', api.triggerAcquisitionTimeoutCheck)}
-      >
-        Check acquisition timeouts
-      </button>
+      <div className="card">
+        <h2>Manual actions</h2>
+        {triggerStatus && (
+          <div className="alert alert-info" style={{ marginBottom: 14 }}>{triggerStatus}</div>
+        )}
+        <div className="btn-row">
+          <button type="button" onClick={() => runTrigger('NAS scan', api.triggerNasScan)}>
+            Scan NAS now
+          </button>
+          <button type="button" onClick={() => runTrigger('Azuracast poll', api.triggerAzuracastPoll)}>
+            Poll Azuracast now
+          </button>
+          <button type="button" onClick={() => runTrigger('Timeout check', api.triggerAcquisitionTimeoutCheck)}>
+            Check acquisition timeouts
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, type LibraryEntry } from '../api';
+import { SourceBadge } from '../components/Badge';
 
 export default function LibraryPage() {
   const [query, setQuery] = useState('');
@@ -33,78 +34,61 @@ export default function LibraryPage() {
     <div>
       <h1>Library</h1>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search artist or title…"
-          style={{ flexGrow: 1 }}
+          style={{ flex: 1 }}
         />
         <button type="submit">Search</button>
         {query && (
-          <button type="button" onClick={() => { setQuery(''); doSearch(''); }}>
-            Clear
-          </button>
+          <button type="button" onClick={() => { setQuery(''); doSearch(''); }}>Clear</button>
         )}
       </form>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {loading && <p>Loading…</p>}
+      {error && <div className="alert alert-error">{error}</div>}
 
       {!loading && (
-        <p style={{ color: '#888', marginBottom: 8 }}>
-          {results.length} result{results.length !== 1 ? 's' : ''} — {nasCount} on NAS,{' '}
-          {azCount} on Azuracast
-          {results.length === 200 && ' (showing first 200 per source — refine your search)'}
+        <p className="meta">
+          {results.length} result{results.length !== 1 ? 's' : ''} — {nasCount} on NAS, {azCount} on Azuracast
+          {results.length >= 200 && ' (showing up to 200 per source — refine your search to narrow down)'}
         </p>
       )}
+      {loading && <p className="meta">Searching…</p>}
 
       {!loading && results.length > 0 && (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-          <thead>
-            <tr style={{ background: '#f5f5f5' }}>
-              <th style={th}>Source</th>
-              <th style={th}>Artist</th>
-              <th style={th}>Title</th>
-              <th style={th}>Album</th>
-              <th style={th}>File / Station</th>
-            </tr>
-          </thead>
-          <tbody>
-            {results.map((r) => (
-              <tr key={`${r.source}-${r.id}`} style={{ borderTop: '1px solid #eee' }}>
-                <td style={td}>
-                  <span
-                    style={{
-                      background: r.source === 'nas' ? '#d1e7dd' : '#cfe2ff',
-                      color: r.source === 'nas' ? '#0a3622' : '#084298',
-                      padding: '2px 6px',
-                      borderRadius: 4,
-                      fontSize: 11,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {r.source === 'nas' ? 'NAS' : 'Azuracast'}
-                  </span>
-                </td>
-                <td style={td}>{r.artist}</td>
-                <td style={td}>{r.title}</td>
-                <td style={{ ...td, color: '#666' }}>{r.album ?? '—'}</td>
-                <td style={{ ...td, color: '#888', fontSize: 12 }}>
-                  {r.filename ?? (r.stationId ? `Station: ${r.stationId}` : '—')}
-                </td>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th>Artist</th>
+                <th>Title</th>
+                <th>Album</th>
+                <th>File / Station</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {results.map((r) => (
+                <tr key={`${r.source}-${r.id}`}>
+                  <td><SourceBadge source={r.source} /></td>
+                  <td style={{ color: 'var(--text-heading)' }}>{r.artist}</td>
+                  <td>{r.title}</td>
+                  <td style={{ color: 'var(--text-muted)' }}>{r.album ?? '—'}</td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                    {r.filename ?? (r.stationId ? `Station: ${r.stationId}` : '—')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {!loading && results.length === 0 && (
-        <p>No results. Try scanning your NAS or polling Azuracast in Settings.</p>
+        <p className="meta">No results. Try scanning your NAS or polling Azuracast in Settings.</p>
       )}
     </div>
   );
 }
-
-const th: React.CSSProperties = { textAlign: 'left', padding: '6px 8px', fontWeight: 600 };
-const td: React.CSSProperties = { padding: '5px 8px' };

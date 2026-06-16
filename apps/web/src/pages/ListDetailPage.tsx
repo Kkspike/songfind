@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, type SongListDetail } from '../api';
+import { StatusBadge } from '../components/Badge';
 
 export default function ListDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -16,12 +17,8 @@ export default function ListDetailPage() {
     const seq = ++requestSeq.current;
     api
       .getList(id)
-      .then((data) => {
-        if (seq === requestSeq.current) setList(data);
-      })
-      .catch((e) => {
-        if (seq === requestSeq.current) setError(String(e));
-      });
+      .then((data) => { if (seq === requestSeq.current) setList(data); })
+      .catch((e) => { if (seq === requestSeq.current) setError(String(e)); });
   }
 
   useEffect(refresh, [id]);
@@ -31,12 +28,10 @@ export default function ListDetailPage() {
     if (!id || !pastedText.trim()) return;
     try {
       const result = await api.importText(id, pastedText);
-      setImportSummary(`Parsed ${result.parsed}, added ${result.added}, skipped ${result.skipped}`);
+      setImportSummary(`Parsed ${result.parsed} · Added ${result.added} · Skipped ${result.skipped}`);
       setPastedText('');
       refresh();
-    } catch (e) {
-      setError(String(e));
-    }
+    } catch (e) { setError(String(e)); }
   }
 
   async function handleCsvImport(e: React.ChangeEvent<HTMLInputElement>) {
@@ -45,13 +40,10 @@ export default function ListDetailPage() {
     if (!file) return;
     try {
       const result = await api.importCsv(id, file);
-      setImportSummary(`Parsed ${result.parsed}, added ${result.added}, skipped ${result.skipped}`);
+      setImportSummary(`Parsed ${result.parsed} · Added ${result.added} · Skipped ${result.skipped}`);
       refresh();
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
+    } catch (e) { setError(String(e)); }
+    finally { if (fileInputRef.current) fileInputRef.current.value = ''; }
   }
 
   async function handleRemoveItem(itemId: string) {
@@ -60,67 +52,75 @@ export default function ListDetailPage() {
     refresh();
   }
 
-  if (!list) return <p>Loading…</p>;
+  if (!list) return <p className="meta">Loading…</p>;
 
   return (
     <div>
-      <p>
-        <Link to="/">&larr; Back to lists</Link>
-      </p>
+      <Link to="/" className="back-link">← Back to lists</Link>
       <h1>{list.name}</h1>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {importSummary && <p>{importSummary}</p>}
 
-      <section>
+      {error && <div className="alert alert-error">{error}</div>}
+      {importSummary && <div className="alert alert-success">{importSummary}</div>}
+
+      <div className="card">
         <h2>Import</h2>
-        <form onSubmit={handlePasteImport}>
+        <form onSubmit={handlePasteImport} style={{ marginBottom: 16 }}>
           <textarea
-            rows={6}
-            cols={50}
-            placeholder={'Artist - Title\nArtist - Title'}
+            rows={5}
+            placeholder={'Artist - Title\nArtist - Title\n…'}
             value={pastedText}
             onChange={(e) => setPastedText(e.target.value)}
+            style={{ marginBottom: 10 }}
           />
-          <div>
-            <button type="submit">Import pasted list</button>
-          </div>
+          <button type="submit" className="btn-primary">Import pasted list</button>
         </form>
-        <div>
-          <label>
-            Or upload CSV (artist,title columns):{' '}
-            <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCsvImport} />
-          </label>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+          Or upload a CSV file (columns: artist, title):&nbsp;
+          <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCsvImport} />
         </div>
-      </section>
+      </div>
 
-      <section>
-        <h2>Tracks ({list.items.length})</h2>
+      <div className="section-header">
+        <h2 style={{ marginBottom: 0, textTransform: 'none', letterSpacing: 0, fontSize: 15 }}>
+          Tracks <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({list.items.length})</span>
+        </h2>
         <a href={api.exportZipUrl(list.id)}>
           <button type="button">Export zip</button>
         </a>
-        <table>
-          <thead>
-            <tr>
-              <th>Artist</th>
-              <th>Title</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.items.map((item) => (
-              <tr key={item.id}>
-                <td>{item.track.artist.name}</td>
-                <td>{item.track.title}</td>
-                <td>{item.track.status}</td>
-                <td>
-                  <button onClick={() => handleRemoveItem(item.id)}>Remove</button>
-                </td>
+      </div>
+
+      {list.items.length === 0 ? (
+        <p className="meta">No tracks yet — import some above.</p>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Artist</th>
+                <th>Title</th>
+                <th>Status</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+            </thead>
+            <tbody>
+              {list.items.map((item) => (
+                <tr key={item.id}>
+                  <td style={{ color: 'var(--text-muted)', width: 40 }}>{item.position}</td>
+                  <td style={{ color: 'var(--text-heading)' }}>{item.track.artist.name}</td>
+                  <td>{item.track.title}</td>
+                  <td><StatusBadge status={item.track.status} /></td>
+                  <td style={{ textAlign: 'right' }}>
+                    <button className="btn-danger" onClick={() => handleRemoveItem(item.id)}>
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
