@@ -5,9 +5,10 @@ import { ListsService } from './lists.service';
 import { ImportService } from './import.service';
 import { ExportService } from './export.service';
 import { TrackUpsertService } from './track-upsert.service';
+import { MatchingModule } from '../matching/matching.module';
 
 @Module({
-  imports: [MulterModule.register()],
+  imports: [MulterModule.register(), MatchingModule],
   controllers: [ListsController],
   providers: [ListsService, ImportService, ExportService, TrackUpsertService],
   exports: [TrackUpsertService],

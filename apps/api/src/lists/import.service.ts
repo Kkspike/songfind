@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrackUpsertService } from './track-upsert.service';
+import { MatchingService } from '../matching/matching.service';
 import { parseCsvBuffer, parseTextList, type ParsedEntry } from './parsing';
 
 @Injectable()
@@ -8,6 +9,7 @@ export class ImportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly trackUpsert: TrackUpsertService,
+    private readonly matching: MatchingService,
   ) {}
 
   async importText(listId: string, text: string) {
@@ -44,6 +46,7 @@ export class ImportService {
       }
     }
 
+    await this.matching.rematchAllMissingTracks();
     return { parsed: entries.length, added, skipped };
   }
 }
