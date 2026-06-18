@@ -71,12 +71,17 @@ export class LidarrService {
     if (!rootFolders.length) throw new Error('No Lidarr root folder configured');
     const rootFolder = rootFolders[0];
 
+    const { data: metadataProfiles } = await http.get<{ id: number; name: string }[]>('/metadataprofile');
+    const metadataProfile =
+      metadataProfiles.find((p) => p.name.toLowerCase() === 'standard') ?? metadataProfiles[0];
+    if (!metadataProfile) throw new Error('No Lidarr metadata profile found');
+
     const { data: created } = await http.post<LidarrArtist>('/artist', {
       ...best,
       monitored: true,
       rootFolderPath: rootFolder.path,
       qualityProfileId: rootFolder.defaultQualityProfileId,
-      metadataProfileId: rootFolder.defaultMetadataProfileId,
+      metadataProfileId: metadataProfile.id,
       addOptions: { monitor: 'none', searchForMissingAlbums: false },
     });
 
