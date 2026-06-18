@@ -157,7 +157,9 @@ export const api = {
     request<SpotifyImportResult>(`/spotify/import/playlist/${playlistId}`, { method: 'POST' }),
 
   acquireTrack: (trackId: string) =>
-    request<unknown>(`/lidarr/acquire/${trackId}`, { method: 'POST' }),
+    request<{ status: string; attempts: Array<{ message?: string }> }>(
+      `/lidarr/acquire/${trackId}`, { method: 'POST' },
+    ),
   checkTrackStatus: (trackId: string) =>
     request<{ status: string; hasFile: boolean }>(`/lidarr/check/${trackId}`, { method: 'POST' }),
 

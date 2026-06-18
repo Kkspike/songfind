@@ -85,14 +85,14 @@ export class LidarrService {
       addOptions: { monitor: 'none', searchForMissingAlbums: false },
     });
 
-    // Trigger a full refresh so Lidarr populates track records from MusicBrainz
+    // Trigger a refresh so Lidarr fetches full album metadata from MusicBrainz
     await http.post('/command', { name: 'RefreshArtist', artistId: created.id });
-    this.logger.log(`RefreshArtist triggered for "${artistName}" (id=${created.id}), waiting for tracks…`);
-    for (let i = 0; i < 15; i++) {
+    this.logger.log(`RefreshArtist triggered for "${artistName}" (id=${created.id}), waiting for albums…`);
+    for (let i = 0; i < 5; i++) {
       await new Promise((r) => setTimeout(r, 2000));
-      const { data: tracks } = await http.get<LidarrTrack[]>('/track', { params: { artistId: created.id } });
-      if (tracks?.length) {
-        this.logger.log(`Tracks ready after ${(i + 1) * 2}s — ${tracks.length} tracks`);
+      const { data: albums } = await http.get<{ id: number }[]>('/album', { params: { artistId: created.id } });
+      if (albums?.length) {
+        this.logger.log(`Albums ready after ${(i + 1) * 2}s — ${albums.length} albums`);
         break;
       }
     }
@@ -117,16 +117,21 @@ export class LidarrService {
         if (match) return match.albumId;
       }
 
-      // Per-album path: for newly added artists, query each album's track list from Lidarr's DB
+      // Lidarr only returns track records for monitored albums.
+      // Temporarily monitor all albums so their tracks become queryable, then unmonitor.
       const { data: albums } = await http.get<{ id: number }[]>('/album', { params: { artistId } });
-      for (const album of albums ?? []) {
-        const { data: tracks } = await http.get<LidarrTrack[]>('/track', { params: { albumId: album.id } });
-        if (tracks?.some((t) => normalize(t.title) === normalizedTarget)) {
-          return album.id;
-        }
-      }
+      if (!albums?.length) return null;
 
-      return null;
+      const albumIds = albums.map((a) => a.id);
+      await http.put('/album/monitor', { albumIds, monitored: true });
+      await new Promise((r) => setTimeout(r, 1000));
+
+      const { data: allTracks } = await http.get<LidarrTrack[]>('/track', { params: { artistId } });
+      const match = allTracks?.find((t) => normalize(t.title) === normalizedTarget);
+
+      await http.put('/album/monitor', { albumIds, monitored: false });
+
+      return match?.albumId ?? null;
     } catch {
       return null;
     }

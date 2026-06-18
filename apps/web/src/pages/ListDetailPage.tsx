@@ -13,6 +13,7 @@ export default function ListDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [acquireErrors, setAcquireErrors] = useState<Record<string, string>>({});
   const [acquireAll, setAcquireAll] = useState<{ done: number; total: number } | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('position');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
@@ -62,8 +63,13 @@ export default function ListDetailPage() {
 
   async function handleAcquire(trackId: string) {
     setBusy((b) => ({ ...b, [trackId]: true }));
+    setAcquireErrors((e) => { const next = { ...e }; delete next[trackId]; return next; });
     try {
-      await api.acquireTrack(trackId);
+      const result = await api.acquireTrack(trackId);
+      if (result.status === 'failed') {
+        const msg = result.attempts?.[0]?.message ?? 'Acquisition failed';
+        setAcquireErrors((e) => ({ ...e, [trackId]: msg }));
+      }
       refresh();
     } catch (e) { setError(String(e)); }
     finally { setBusy((b) => ({ ...b, [trackId]: false })); }
@@ -213,13 +219,20 @@ export default function ListDetailPage() {
                   <td><StatusBadge status={item.track.status} /></td>
                   <td>
                     {item.track.status === 'missing' && (
-                      <button
-                        className="btn-sm btn-primary"
-                        onClick={() => handleAcquire(item.track.id)}
-                        disabled={busy[item.track.id]}
-                      >
-                        {busy[item.track.id] ? 'Starting…' : 'Acquire'}
-                      </button>
+                      <div>
+                        <button
+                          className="btn-sm btn-primary"
+                          onClick={() => handleAcquire(item.track.id)}
+                          disabled={busy[item.track.id]}
+                        >
+                          {busy[item.track.id] ? 'Starting…' : 'Acquire'}
+                        </button>
+                        {acquireErrors[item.track.id] && (
+                          <div style={{ color: 'var(--red, #e05)', fontSize: 11, marginTop: 4, maxWidth: 180 }}>
+                            {acquireErrors[item.track.id]}
+                          </div>
+                        )}
+                      </div>
                     )}
                     {item.track.status === 'acquiring' && (
                       <button
