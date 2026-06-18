@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrackUpsertService } from '../lists/track-upsert.service';
+import { MatchingService } from '../matching/matching.service';
 import { SpotifyService } from './spotify.service';
 
 @Injectable()
@@ -8,6 +9,7 @@ export class SpotifyImportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly trackUpsert: TrackUpsertService,
+    private readonly matching: MatchingService,
     private readonly spotify: SpotifyService,
   ) {}
 
@@ -40,6 +42,7 @@ export class SpotifyImportService {
       }
     }
 
+    await this.matching.rematchAllMissingTracks();
     return { listId: list.id, listName: list.name, parsed: entries.length, added, skipped };
   }
 }
