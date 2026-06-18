@@ -15,6 +15,13 @@ export interface LibraryEntry {
   azuracastBaseUrl?: string | null;
 }
 
+export interface LibraryPage {
+  items: LibraryEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 interface RawLibraryFile {
   id: string;
   filename: string;
@@ -22,11 +29,22 @@ interface RawLibraryFile {
   tags: unknown;
 }
 
+type SortKey = 'artist' | 'title' | 'album';
+type SortOrder = 'asc' | 'desc';
+type SourceFilter = 'all' | 'nas' | 'azuracast';
+
 @Injectable()
 export class LibraryService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async search(q?: string): Promise<LibraryEntry[]> {
+  async search(
+    q?: string,
+    source: SourceFilter = 'all',
+    page = 1,
+    pageSize = 50,
+    sort: SortKey = 'artist',
+    order: SortOrder = 'asc',
+  ): Promise<LibraryPage> {
     const nq = q && q.trim().length > 0 ? normalize(q.trim()) : null;
     const like = nq ? `%${nq}%` : '%';
 
@@ -34,21 +52,24 @@ export class LibraryService {
     const azuracastBaseUrl = settings?.azuracastUrl?.replace(/\/$/, '') ?? null;
 
     const [nasFiles, azTracks] = await Promise.all([
-      this.prisma.$queryRaw<RawLibraryFile[]>`
-        SELECT id, filename, path, tags
-        FROM "LibraryFile"
-        WHERE tags->>'normalizedArtist' LIKE ${like}
-           OR tags->>'normalizedTitle'  LIKE ${like}
-        ORDER BY "scannedAt" DESC
-        LIMIT 200
-      `,
-      this.prisma.azuracastTrack.findMany({
-        where: nq
-          ? { OR: [{ normalizedArtist: { contains: nq } }, { normalizedTitle: { contains: nq } }] }
-          : {},
-        take: 200,
-        orderBy: { lastSeenAt: 'desc' },
-      }),
+      source !== 'azuracast'
+        ? this.prisma.$queryRaw<RawLibraryFile[]>`
+            SELECT id, filename, path, tags
+            FROM "LibraryFile"
+            WHERE tags->>'normalizedArtist' LIKE ${like}
+               OR tags->>'normalizedTitle'  LIKE ${like}
+            LIMIT 5000
+          `
+        : Promise.resolve([] as RawLibraryFile[]),
+      source !== 'nas'
+        ? this.prisma.azuracastTrack.findMany({
+            where: nq
+              ? { OR: [{ normalizedArtist: { contains: nq } }, { normalizedTitle: { contains: nq } }] }
+              : {},
+            take: 5000,
+            orderBy: { lastSeenAt: 'desc' },
+          })
+        : Promise.resolve([]),
     ]);
 
     const nasEntries: LibraryEntry[] = nasFiles.map((f) => {
@@ -78,6 +99,16 @@ export class LibraryService {
       azuracastBaseUrl,
     }));
 
-    return [...nasEntries, ...azEntries];
+    const all = [...nasEntries, ...azEntries];
+
+    all.sort((a, b) => {
+      const va = (a[sort] ?? '').toLowerCase();
+      const vb = (b[sort] ?? '').toLowerCase();
+      return order === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    });
+
+    const total = all.length;
+    const offset = (page - 1) * pageSize;
+    return { items: all.slice(offset, offset + pageSize), total, page, pageSize };
   }
 }

@@ -26,8 +26,22 @@ export class LibraryController {
   ) {}
 
   @Get()
-  search(@Query('q') q?: string) {
-    return this.library.search(q);
+  search(
+    @Query('q') q?: string,
+    @Query('source') source?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('sort') sort?: string,
+    @Query('order') order?: string,
+  ) {
+    return this.library.search(
+      q,
+      (source as 'all' | 'nas' | 'azuracast') || 'all',
+      page ? parseInt(page, 10) : 1,
+      pageSize ? parseInt(pageSize, 10) : 50,
+      (sort as 'artist' | 'title' | 'album') || 'artist',
+      (order as 'asc' | 'desc') || 'asc',
+    );
   }
 
   @Get('azuracast/:id/download')

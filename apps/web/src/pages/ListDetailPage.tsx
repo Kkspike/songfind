@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api, type SongListDetail } from '../api';
+import { api, type SongListDetail, type SongListItem } from '../api';
 import { StatusBadge } from '../components/Badge';
+
+type SortKey = 'position' | 'artist' | 'title' | 'status';
+type SortOrder = 'asc' | 'desc';
 
 export default function ListDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -11,6 +14,8 @@ export default function ListDetailPage() {
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [acquireAll, setAcquireAll] = useState<{ done: number; total: number } | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>('position');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const requestSeq = useRef(0);
 
@@ -85,6 +90,32 @@ export default function ListDetailPage() {
     finally { setBusy((b) => ({ ...b, [trackId]: false })); }
   }
 
+  const sortedItems = useMemo<SongListItem[]>(() => {
+    if (!list) return [];
+    return [...list.items].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === 'position') cmp = a.position - b.position;
+      else if (sortKey === 'artist') cmp = a.track.artist.name.localeCompare(b.track.artist.name);
+      else if (sortKey === 'title') cmp = a.track.title.localeCompare(b.track.title);
+      else if (sortKey === 'status') cmp = a.track.status.localeCompare(b.track.status);
+      return sortOrder === 'asc' ? cmp : -cmp;
+    });
+  }, [list, sortKey, sortOrder]);
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) setSortOrder((o) => (o === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortOrder('asc'); }
+  }
+
+  function SortTh({ col, label, width }: { col: SortKey; label: string; width?: number }) {
+    const active = sortKey === col;
+    return (
+      <th style={{ cursor: 'pointer', userSelect: 'none', width }} onClick={() => handleSort(col)}>
+        {label} {active ? (sortOrder === 'asc' ? '↑' : '↓') : <span style={{ opacity: 0.3 }}>↕</span>}
+      </th>
+    );
+  }
+
   if (!list) return <p className="meta">Loading…</p>;
 
   return (
@@ -150,16 +181,16 @@ export default function ListDetailPage() {
           <table>
             <thead>
               <tr>
-                <th style={{ width: 36 }}>#</th>
-                <th>Artist</th>
-                <th>Title</th>
-                <th>Status</th>
+                <SortTh col="position" label="#" width={36} />
+                <SortTh col="artist" label="Artist" />
+                <SortTh col="title" label="Title" />
+                <SortTh col="status" label="Status" />
                 <th style={{ width: 180 }}></th>
                 <th style={{ width: 80 }}></th>
               </tr>
             </thead>
             <tbody>
-              {list.items.map((item) => (
+              {sortedItems.map((item) => (
                 <tr key={item.id}>
                   <td style={{ color: 'var(--text-muted)' }}>{item.position}</td>
                   <td style={{ color: 'var(--text-heading)' }}>{item.track.artist.name}</td>

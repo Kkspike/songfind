@@ -149,8 +149,26 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ videoId }) },
     ),
 
-  searchLibrary: (q?: string) =>
-    request<LibraryEntry[]>(`/library${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  searchLibrary: (params?: {
+    q?: string;
+    source?: 'all' | 'nas' | 'azuracast';
+    page?: number;
+    pageSize?: number;
+    sort?: 'artist' | 'title' | 'album';
+    order?: 'asc' | 'desc';
+  }) => {
+    const p = new URLSearchParams();
+    if (params?.q) p.set('q', params.q);
+    if (params?.source) p.set('source', params.source);
+    if (params?.page) p.set('page', String(params.page));
+    if (params?.pageSize) p.set('pageSize', String(params.pageSize));
+    if (params?.sort) p.set('sort', params.sort);
+    if (params?.order) p.set('order', params.order);
+    const qs = p.toString();
+    return request<{ items: LibraryEntry[]; total: number; page: number; pageSize: number }>(
+      `/library${qs ? `?${qs}` : ''}`,
+    );
+  },
   nasDownloadUrl: (id: string) => `${API_BASE}/library/${id}/download`,
   azuracastDownloadUrl: (id: string) => `${API_BASE}/library/azuracast/${id}/download`,
 
