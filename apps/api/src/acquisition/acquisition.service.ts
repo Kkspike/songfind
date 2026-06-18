@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MatchingService } from '../matching/matching.service';
 import { NasScannerService } from '../nas-scanner/nas-scanner.service';
 import { YoutubeService, type YoutubeCandidate } from '../youtube-fallback/youtube.service';
+import { LidarrAcquisitionService } from '../lidarr/lidarr-acquisition.service';
 
 const YOUTUBE_IMPORTS_SUBFOLDER = '_YouTube Imports';
 
@@ -16,7 +17,31 @@ export class AcquisitionService {
     private readonly matching: MatchingService,
     private readonly nasScanner: NasScannerService,
     private readonly youtube: YoutubeService,
+    private readonly lidarrAcquisition: LidarrAcquisitionService,
   ) {}
+
+  async recheckAcquiring() {
+    const tracks = await this.prisma.track.findMany({
+      where: { status: 'acquiring' },
+      select: { id: true },
+    });
+
+    let nowOwned = 0;
+    let stillAcquiring = 0;
+    let errors = 0;
+
+    for (const track of tracks) {
+      try {
+        const result = await this.lidarrAcquisition.checkStatus(track.id);
+        if (result.hasFile) nowOwned++;
+        else stillAcquiring++;
+      } catch {
+        errors++;
+      }
+    }
+
+    return { checked: tracks.length, nowOwned, stillAcquiring, errors };
+  }
 
   async checkTimeouts() {
     const settings = await this.prisma.settings.findUnique({ where: { id: 1 } });

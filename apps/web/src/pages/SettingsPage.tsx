@@ -222,6 +222,9 @@ export default function SettingsPage() {
           <button type="button" onClick={() => runTrigger('Timeout check', api.triggerAcquisitionTimeoutCheck)}>
             Check acquisition timeouts
           </button>
+          <button type="button" onClick={() => runTrigger('Recheck acquiring', api.recheckAcquiring)}>
+            Recheck acquiring tracks
+          </button>
         </div>
       </div>
 

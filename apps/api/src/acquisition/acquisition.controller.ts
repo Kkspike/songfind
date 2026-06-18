@@ -5,6 +5,11 @@ import { AcquisitionService } from './acquisition.service';
 export class AcquisitionController {
   constructor(private readonly acquisition: AcquisitionService) {}
 
+  @Post('recheck')
+  recheckAcquiring() {
+    return this.acquisition.recheckAcquiring();
+  }
+
   @Post('check-timeouts')
   checkTimeouts() {
     return this.acquisition.checkTimeouts();

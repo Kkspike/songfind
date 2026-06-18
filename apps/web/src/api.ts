@@ -159,6 +159,10 @@ export const api = {
   triggerAzuracastPoll: () => request<unknown>('/azuracast/poll', { method: 'POST' }),
   triggerAcquisitionTimeoutCheck: () =>
     request<unknown>('/acquisition/check-timeouts', { method: 'POST' }),
+  recheckAcquiring: () =>
+    request<{ checked: number; nowOwned: number; stillAcquiring: number; errors: number }>(
+      '/acquisition/recheck', { method: 'POST' },
+    ),
 
   mergeDuplicates: () =>
     request<{ mergedArtists: number; mergedTracks: number }>('/settings/merge-duplicates', { method: 'POST' }),
