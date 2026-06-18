@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Post,
   Res,
@@ -41,11 +42,13 @@ export class ListsController {
   }
 
   @Delete(':id')
+  @HttpCode(204)
   remove(@Param('id') id: string) {
     return this.lists.remove(id);
   }
 
   @Delete(':id/items/:itemId')
+  @HttpCode(204)
   removeItem(@Param('id') id: string, @Param('itemId') itemId: string) {
     return this.lists.removeItem(id, itemId);
   }
