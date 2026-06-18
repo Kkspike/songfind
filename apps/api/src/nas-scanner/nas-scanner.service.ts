@@ -78,11 +78,18 @@ export class NasScannerService {
 
   private async removeStaleEntries(currentPaths: string[]) {
     const currentSet = new Set(currentPaths);
-    const existing = await this.prisma.libraryFile.findMany({ select: { id: true, path: true } });
-    const staleIds = existing.filter((f) => !currentSet.has(f.path)).map((f) => f.id);
-    if (staleIds.length > 0) {
-      await this.prisma.libraryFile.deleteMany({ where: { id: { in: staleIds } } });
+    const existing = await this.prisma.libraryFile.findMany({ select: { id: true, path: true, trackId: true } });
+    const stale = existing.filter((f) => !currentSet.has(f.path));
+    if (stale.length === 0) return;
+
+    const staleTrackIds = stale.map((f) => f.trackId).filter((id): id is string => id !== null);
+    if (staleTrackIds.length > 0) {
+      await this.prisma.track.updateMany({
+        where: { id: { in: staleTrackIds }, status: 'owned' },
+        data: { status: 'missing' },
+      });
     }
+    await this.prisma.libraryFile.deleteMany({ where: { id: { in: stale.map((f) => f.id) } } });
   }
 
   private async walk(dir: string): Promise<string[]> {

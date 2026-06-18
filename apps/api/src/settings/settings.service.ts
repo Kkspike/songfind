@@ -60,6 +60,66 @@ export class SettingsService {
     }
   }
 
+  async findAndMergeDuplicates(): Promise<{ mergedArtists: number; mergedTracks: number }> {
+    let mergedArtists = 0;
+    let mergedTracks = 0;
+
+    // Merge duplicate artists (same normalizedName, keep earliest-created)
+    const artistGroups = await this.prisma.$queryRaw<
+      Array<{ name: string; ids: string }>
+    >`
+      SELECT "normalizedName" AS name, STRING_AGG(id, ',' ORDER BY "createdAt") AS ids
+      FROM "Artist"
+      GROUP BY "normalizedName"
+      HAVING COUNT(*) > 1
+    `;
+
+    for (const row of artistGroups) {
+      const [canonical, ...dups] = row.ids.split(',');
+      await this.prisma.track.updateMany({ where: { artistId: { in: dups } }, data: { artistId: canonical } });
+      await this.prisma.artist.deleteMany({ where: { id: { in: dups } } });
+      mergedArtists += dups.length;
+    }
+
+    // Merge duplicate tracks (same artistId+normalizedTitle, keep earliest-created)
+    const trackGroups = await this.prisma.$queryRaw<
+      Array<{ artistid: string; ntitle: string; ids: string }>
+    >`
+      SELECT "artistId" AS artistid, "normalizedTitle" AS ntitle, STRING_AGG(id, ',' ORDER BY "createdAt") AS ids
+      FROM "Track"
+      GROUP BY "artistId", "normalizedTitle"
+      HAVING COUNT(*) > 1
+    `;
+
+    for (const row of trackGroups) {
+      const [canonical, ...dups] = row.ids.split(',');
+
+      const dupItems = await this.prisma.songListItem.findMany({
+        where: { trackId: { in: dups } },
+        select: { id: true, listId: true },
+      });
+      const canonicalLists = new Set(
+        (await this.prisma.songListItem.findMany({
+          where: { trackId: canonical },
+          select: { listId: true },
+        })).map((i) => i.listId),
+      );
+      const conflicts = dupItems.filter((i) => canonicalLists.has(i.listId)).map((i) => i.id);
+      if (conflicts.length > 0) {
+        await this.prisma.songListItem.deleteMany({ where: { id: { in: conflicts } } });
+      }
+
+      await this.prisma.songListItem.updateMany({ where: { trackId: { in: dups } }, data: { trackId: canonical } });
+      await this.prisma.libraryFile.updateMany({ where: { trackId: { in: dups } }, data: { trackId: canonical } });
+      await this.prisma.azuracastTrack.updateMany({ where: { trackId: { in: dups } }, data: { trackId: canonical } });
+      await this.prisma.acquisitionJob.updateMany({ where: { trackId: { in: dups } }, data: { trackId: canonical } });
+      await this.prisma.track.deleteMany({ where: { id: { in: dups } } });
+      mergedTracks += dups.length;
+    }
+
+    return { mergedArtists, mergedTracks };
+  }
+
   async testAzuracast(): Promise<TestResult> {
     const s = await this.prisma.settings.findUnique({ where: { id: 1 } });
     if (!s?.azuracastUrl)

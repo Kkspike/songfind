@@ -251,8 +251,9 @@ tbody td { padding: 9px 14px; vertical-align: middle; }
   content: attr(data-tooltip);
   position: absolute;
   bottom: calc(100% + 7px);
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  transform: none;
+  max-width: min(420px, 80vw);
   background: #2a2a35;
   color: var(--text);
   border: 1px solid var(--border);
@@ -262,7 +263,8 @@ tbody td { padding: 9px 14px; vertical-align: middle; }
   font-weight: 400;
   text-transform: none;
   letter-spacing: 0;
-  white-space: nowrap;
+  white-space: pre-wrap;
+  word-break: break-all;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s;

@@ -11,6 +11,8 @@ export interface LibraryEntry {
   filename: string | null;
   path: string | null;
   stationId: string | null;
+  uniqueId?: string | null;
+  azuracastBaseUrl?: string | null;
 }
 
 interface RawLibraryFile {
@@ -27,6 +29,9 @@ export class LibraryService {
   async search(q?: string): Promise<LibraryEntry[]> {
     const nq = q && q.trim().length > 0 ? normalize(q.trim()) : null;
     const like = nq ? `%${nq}%` : '%';
+
+    const settings = await this.prisma.settings.findUnique({ where: { id: 1 } });
+    const azuracastBaseUrl = settings?.azuracastUrl?.replace(/\/$/, '') ?? null;
 
     const [nasFiles, azTracks] = await Promise.all([
       this.prisma.$queryRaw<RawLibraryFile[]>`
@@ -67,8 +72,10 @@ export class LibraryService {
       title: t.title,
       album: null,
       filename: null,
-      path: null,
+      path: t.filePath ?? null,
       stationId: t.stationId,
+      uniqueId: t.uniqueId ?? null,
+      azuracastBaseUrl,
     }));
 
     return [...nasEntries, ...azEntries];

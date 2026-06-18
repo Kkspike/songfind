@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE ?? '';
+const API_BASE = import.meta.env.VITE_API_BASE ?? '/api';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -76,6 +76,8 @@ export interface LibraryEntry {
   filename: string | null;
   path: string | null;
   stationId: string | null;
+  uniqueId?: string | null;
+  azuracastBaseUrl?: string | null;
 }
 
 export interface TestResult {
@@ -97,6 +99,7 @@ export interface Settings {
   spotifyClientSecret: string | null;
   spotifyRedirectUri: string | null;
   fallbackTimeoutMins: number;
+  matchThreshold: number;
   spotifyConnected: boolean;
 }
 
@@ -146,6 +149,7 @@ export const api = {
   searchLibrary: (q?: string) =>
     request<LibraryEntry[]>(`/library${q ? `?q=${encodeURIComponent(q)}` : ''}`),
   nasDownloadUrl: (id: string) => `${API_BASE}/library/${id}/download`,
+  azuracastDownloadUrl: (id: string) => `${API_BASE}/library/azuracast/${id}/download`,
 
   testLidarr: () => request<TestResult>('/settings/test/lidarr', { method: 'POST' }),
   testProwlarr: () => request<TestResult>('/settings/test/prowlarr', { method: 'POST' }),
@@ -155,4 +159,7 @@ export const api = {
   triggerAzuracastPoll: () => request<unknown>('/azuracast/poll', { method: 'POST' }),
   triggerAcquisitionTimeoutCheck: () =>
     request<unknown>('/acquisition/check-timeouts', { method: 'POST' }),
+
+  mergeDuplicates: () =>
+    request<{ mergedArtists: number; mergedTracks: number }>('/settings/merge-duplicates', { method: 'POST' }),
 };

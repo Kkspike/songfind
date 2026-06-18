@@ -130,9 +130,16 @@ export default function ListDetailPage() {
                 : `Acquire all missing (${list.items.filter((i) => i.track.status === 'missing').length})`}
             </button>
           )}
-          <a href={api.exportZipUrl(list.id)}>
-            <button type="button">Export zip</button>
-          </a>
+          {(() => {
+            const ownedCount = list.items.filter((i) => i.track.status === 'owned').length;
+            return (
+              <a href={api.exportZipUrl(list.id)} title={ownedCount === 0 ? 'No owned NAS tracks in this list' : undefined}>
+                <button type="button" disabled={ownedCount === 0}>
+                  Export zip ({ownedCount} owned)
+                </button>
+              </a>
+            );
+          })()}
         </div>
       </div>
 

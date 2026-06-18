@@ -40,7 +40,7 @@ model Artist {
   tracks         Track[]
   createdAt      DateTime @default(now())
 
-  @@index([normalizedName])
+  @@unique([normalizedName])
 }
 
 model Track {
@@ -62,7 +62,7 @@ model Track {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([normalizedTitle])
+  @@unique([artistId, normalizedTitle])
   @@index([artistId])
 }
 
@@ -108,6 +108,8 @@ model AzuracastTrack {
   artistName     String
   normalizedTitle  String
   normalizedArtist String
+  uniqueId       String?
+  filePath       String?
   lastSeenAt     DateTime @default(now())
 
   @@unique([azuracastSongId, stationId])
@@ -144,4 +146,5 @@ model Settings {
   spotifyAccessToken   String?
   spotifyRefreshToken  String?
   fallbackTimeoutMins  Int     @default(30)
+  matchThreshold       Float   @default(0.82)
 }

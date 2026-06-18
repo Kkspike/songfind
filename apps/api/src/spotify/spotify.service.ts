@@ -115,20 +115,34 @@ export class SpotifyService {
     const settings = await this.requireSettings();
     if (!settings.spotifyRefreshToken) throw new Error('Spotify is not authorized yet');
 
-    const { data } = await axios.post(
-      TOKEN_URL,
-      new URLSearchParams({ grant_type: 'refresh_token', refresh_token: settings.spotifyRefreshToken }),
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Authorization: `Basic ${Buffer.from(`${settings.spotifyClientId}:${settings.spotifyClientSecret}`).toString('base64')}`,
+    try {
+      const { data } = await axios.post(
+        TOKEN_URL,
+        new URLSearchParams({ grant_type: 'refresh_token', refresh_token: settings.spotifyRefreshToken }),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization: `Basic ${Buffer.from(`${settings.spotifyClientId}:${settings.spotifyClientSecret}`).toString('base64')}`,
+          },
         },
-      },
-    );
+      );
 
-    return this.prisma.settings.update({
-      where: { id: 1 },
-      data: { spotifyAccessToken: data.access_token },
-    });
+      return this.prisma.settings.update({
+        where: { id: 1 },
+        data: {
+          spotifyAccessToken: data.access_token,
+          ...(data.refresh_token ? { spotifyRefreshToken: data.refresh_token } : {}),
+        },
+      });
+    } catch (err: any) {
+      if (err?.response?.data?.error === 'invalid_grant') {
+        await this.prisma.settings.update({
+          where: { id: 1 },
+          data: { spotifyAccessToken: null, spotifyRefreshToken: null },
+        });
+        throw new Error('Spotify session expired — please reconnect Spotify in Settings');
+      }
+      throw err;
+    }
   }
 }

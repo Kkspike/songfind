@@ -5,10 +5,14 @@ import { MatchingService } from '../matching/matching.service';
 import { normalize } from '../common/normalize';
 
 interface AzuracastFile {
+  id: number;
+  unique_id: string | null;
   song_id: string;
+  path: string | null;
   artist: string | null;
   title: string | null;
   album: string | null;
+  links?: { download?: string; self?: string; art?: string };
 }
 
 const NULL_CHAR = String.fromCharCode(0);
@@ -42,6 +46,10 @@ export class AzuracastService {
         { headers: { Authorization: `Bearer ${settings.azuracastApiKey}` } },
       );
 
+      if (data.length > 0) {
+        this.logger.log(`Azuracast first file sample: ${JSON.stringify(data[0]).substring(0, 400)}`);
+      }
+
       const seenSongIds: string[] = [];
       for (const file of data) {
         const artist = file.artist ? sanitize(file.artist) : '';
@@ -61,12 +69,16 @@ export class AzuracastService {
             artistName: artist,
             normalizedTitle: normalize(title),
             normalizedArtist: normalize(artist),
+            uniqueId: String(file.id),
+            filePath: file.links?.download ?? file.path ?? null,
           },
           update: {
             title,
             artistName: artist,
             normalizedTitle: normalize(title),
             normalizedArtist: normalize(artist),
+            uniqueId: String(file.id),
+            filePath: file.links?.download ?? file.path ?? null,
             lastSeenAt: new Date(),
           },
         });

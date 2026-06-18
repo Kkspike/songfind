@@ -30,17 +30,7 @@ import { LibraryModule } from './library/library.module';
     LibraryModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', '..', 'web', 'dist'),
-      exclude: [
-        '/lists{/*path}',
-        '/settings{/*path}',
-        '/spotify{/*path}',
-        '/azuracast{/*path}',
-        '/lidarr{/*path}',
-        '/nas-scanner{/*path}',
-        '/acquisition{/*path}',
-        '/library{/*path}',
-        '/activity{/*path}',
-      ],
+      exclude: ['/api{/*path}', '/spotify/callback'],
     }),
   ],
 })

@@ -181,6 +181,25 @@ export default function SettingsPage() {
             <label>YouTube fallback timeout (minutes)</label>
             <input type="number" {...field('fallbackTimeoutMins')} min={1} />
           </div>
+          <div className="form-field" style={{ maxWidth: 360 }}>
+            <label>
+              Match confidence threshold — <strong>{Number(form.matchThreshold ?? 0.82).toFixed(2)}</strong>
+              <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> (lower = more matches, higher = stricter)</span>
+            </label>
+            <input
+              type="range"
+              min={0.1}
+              max={1}
+              step={0.01}
+              value={form.matchThreshold ?? 0.82}
+              onChange={(e) => setForm((f) => ({ ...f, matchThreshold: parseFloat(e.target.value) }))}
+              style={{ width: '100%' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)' }}>
+              <span>0.10 (loose)</span>
+              <span>1.00 (exact)</span>
+            </div>
+          </div>
         </div>
 
         <div className="btn-row" style={{ marginBottom: 32 }}>
@@ -202,6 +221,18 @@ export default function SettingsPage() {
           </button>
           <button type="button" onClick={() => runTrigger('Timeout check', api.triggerAcquisitionTimeoutCheck)}>
             Check acquisition timeouts
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Data</h2>
+        <p className="meta" style={{ marginBottom: 12 }}>
+          Find duplicate artists and tracks (same normalized name) and merge them into a single record.
+        </p>
+        <div className="btn-row">
+          <button type="button" onClick={() => runTrigger('Merge duplicates', api.mergeDuplicates)}>
+            Find &amp; merge duplicate tracks
           </button>
         </div>
       </div>

@@ -30,4 +30,9 @@ export class SettingsController {
   testAzuracast() {
     return this.settings.testAzuracast();
   }
+
+  @Post('merge-duplicates')
+  mergeDuplicates() {
+    return this.settings.findAndMergeDuplicates();
+  }
 }

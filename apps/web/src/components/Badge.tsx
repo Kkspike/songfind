@@ -28,7 +28,7 @@ export function StatusBadge({ status }: { status: string }) {
   };
   const { cls, label, tip } = map[status] ?? { cls: 'badge-missing', label: status, tip: '' };
   return (
-    <span className={`badge ${cls}`} data-tooltip={tip || undefined}>
+    <span className={`badge ${cls}`} title={tip || undefined}>
       {label}
     </span>
   );
@@ -53,7 +53,7 @@ const JOB_STATUS: Record<string, { cls: string; tip: string }> = {
 export function JobStatusBadge({ status }: { status: string }) {
   const { cls, tip } = JOB_STATUS[status] ?? { cls: 'badge-missing', tip: '' };
   return (
-    <span className={`badge ${cls}`} data-tooltip={tip || undefined}>
+    <span className={`badge ${cls}`} title={tip || undefined}>
       {status.replace(/_/g, ' ')}
     </span>
   );

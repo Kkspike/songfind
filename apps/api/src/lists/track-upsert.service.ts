@@ -11,25 +11,17 @@ export class TrackUpsertService {
     const normalizedName = normalize(entry.artist);
     const normalizedTitle = normalize(entry.title);
 
-    let artist = await this.prisma.artist.findFirst({ where: { normalizedName } });
-    if (!artist) {
-      artist = await this.prisma.artist.create({
-        data: { name: entry.artist, normalizedName },
-      });
-    }
-
-    let track = await this.prisma.track.findFirst({
-      where: { artistId: artist.id, normalizedTitle },
+    const artist = await this.prisma.artist.upsert({
+      where: { normalizedName },
+      create: { name: entry.artist, normalizedName },
+      update: {},
     });
-    if (!track) {
-      track = await this.prisma.track.create({
-        data: {
-          artistId: artist.id,
-          title: entry.title,
-          normalizedTitle,
-        },
-      });
-    }
+
+    const track = await this.prisma.track.upsert({
+      where: { artistId_normalizedTitle: { artistId: artist.id, normalizedTitle } },
+      create: { artistId: artist.id, title: entry.title, normalizedTitle },
+      update: {},
+    });
 
     return track;
   }

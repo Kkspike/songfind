@@ -2,13 +2,24 @@ import { Injectable } from '@nestjs/common';
 import compareTwoStrings from 'string-similarity-js';
 import { PrismaService } from '../prisma/prisma.service';
 
-const MATCH_THRESHOLD = 0.82;
-
 @Injectable()
 export class MatchingService {
   constructor(private readonly prisma: PrismaService) {}
 
   async rematchAllMissingTracks() {
+    // Reset owned/azuracast tracks that lost their backing file (e.g. NAS file removed)
+    await this.prisma.track.updateMany({
+      where: { status: 'owned', libraryFiles: { none: {} } },
+      data: { status: 'missing' },
+    });
+    await this.prisma.track.updateMany({
+      where: { status: 'available_on_azuracast', azuracastTracks: { none: {} } },
+      data: { status: 'missing' },
+    });
+
+    const settings = await this.prisma.settings.findUnique({ where: { id: 1 } });
+    const threshold = settings?.matchThreshold ?? 0.82;
+
     const tracks = await this.prisma.track.findMany({
       where: { status: 'missing' },
       include: { artist: true },
@@ -18,7 +29,7 @@ export class MatchingService {
     let matchedToAzuracast = 0;
 
     for (const track of tracks) {
-      const libraryMatch = await this.findLibraryMatch(track.artist.normalizedName, track.normalizedTitle);
+      const libraryMatch = await this.findLibraryMatch(track.artist.normalizedName, track.normalizedTitle, threshold);
       if (libraryMatch) {
         await this.prisma.$transaction([
           this.prisma.libraryFile.update({ where: { id: libraryMatch.id }, data: { trackId: track.id } }),
@@ -28,7 +39,7 @@ export class MatchingService {
         continue;
       }
 
-      const azuracastMatch = await this.findAzuracastMatch(track.artist.normalizedName, track.normalizedTitle);
+      const azuracastMatch = await this.findAzuracastMatch(track.artist.normalizedName, track.normalizedTitle, threshold);
       if (azuracastMatch) {
         await this.prisma.$transaction([
           this.prisma.azuracastTrack.update({ where: { id: azuracastMatch.id }, data: { trackId: track.id } }),
@@ -41,17 +52,17 @@ export class MatchingService {
     return { checked: tracks.length, matchedToLibrary, matchedToAzuracast };
   }
 
-  private async findLibraryMatch(normalizedArtist: string, normalizedTitle: string) {
+  private async findLibraryMatch(normalizedArtist: string, normalizedTitle: string, threshold: number) {
     const candidates = await this.prisma.libraryFile.findMany({ where: { trackId: null } });
-    return this.bestMatch(candidates, normalizedArtist, normalizedTitle, (c) => {
+    return this.bestMatch(candidates, normalizedArtist, normalizedTitle, threshold, (c) => {
       const tags = (c.tags as Record<string, string> | null) ?? {};
       return { artist: tags.normalizedArtist ?? '', title: tags.normalizedTitle ?? '' };
     });
   }
 
-  private async findAzuracastMatch(normalizedArtist: string, normalizedTitle: string) {
+  private async findAzuracastMatch(normalizedArtist: string, normalizedTitle: string, threshold: number) {
     const candidates = await this.prisma.azuracastTrack.findMany({ where: { trackId: null } });
-    return this.bestMatch(candidates, normalizedArtist, normalizedTitle, (c) => ({
+    return this.bestMatch(candidates, normalizedArtist, normalizedTitle, threshold, (c) => ({
       artist: c.normalizedArtist,
       title: c.normalizedTitle,
     }));
@@ -61,6 +72,7 @@ export class MatchingService {
     candidates: T[],
     normalizedArtist: string,
     normalizedTitle: string,
+    threshold: number,
     extract: (c: T) => { artist: string; title: string },
   ): T | null {
     let best: T | null = null;
@@ -78,6 +90,6 @@ export class MatchingService {
       }
     }
 
-    return bestScore >= MATCH_THRESHOLD ? best : null;
+    return bestScore >= threshold ? best : null;
   }
 }

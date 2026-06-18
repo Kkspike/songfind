@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import * as path from 'node:path';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { extname } from 'node:path';
 import { ZipArchive } from 'archiver';
 import type { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
@@ -14,32 +14,40 @@ export class ExportService {
       include: {
         items: {
           orderBy: { position: 'asc' },
-          include: { track: { include: { libraryFiles: true } } },
+          include: {
+            track: {
+              include: {
+                artist: true,
+                libraryFiles: { take: 1 },
+              },
+            },
+          },
         },
       },
     });
     if (!list) throw new NotFoundException('List not found');
 
-    const filePaths = list.items
-      .flatMap((item) => item.track.libraryFiles)
-      .filter((f) => f.path);
-
-    const usedNames = new Set<string>();
-    const archive = new ZipArchive({ zlib: { level: 9 } });
+    const ownedItems = list.items.filter((i) => i.track.libraryFiles.length > 0);
+    if (ownedItems.length === 0) {
+      throw new BadRequestException('No owned NAS tracks in this list to export');
+    }
 
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${sanitizeFilename(list.name)}.zip"`,
+      `attachment; filename*=UTF-8''${encodeURIComponent(sanitize(list.name))}.zip`,
     );
 
-    archive.on('error', (err) => {
-      res.destroy(err);
-    });
+    const archive = new ZipArchive({ zlib: { level: 6 } });
+    archive.on('error', (err) => res.destroy(err));
     archive.pipe(res);
 
-    for (const file of filePaths) {
-      const entryName = uniqueEntryName(file.filename, usedNames);
+    const usedNames = new Set<string>();
+    for (const item of ownedItems) {
+      const file = item.track.libraryFiles[0];
+      const ext = extname(file.filename);
+      const base = `${sanitize(item.track.artist.name)} - ${sanitize(item.track.title)}`;
+      const entryName = dedup(`${base}${ext}`, usedNames);
       archive.file(file.path, { name: entryName });
     }
 
@@ -47,23 +55,20 @@ export class ExportService {
   }
 }
 
-function sanitizeFilename(name: string): string {
-  return name.replace(/[/\\?%*:|"<>]/g, '_');
+function sanitize(name: string): string {
+  return name.replace(/[/\\?%*:|"<>]/g, '_').trim();
 }
 
-function uniqueEntryName(filename: string, used: Set<string>): string {
+function dedup(filename: string, used: Set<string>): string {
   if (!used.has(filename)) {
     used.add(filename);
     return filename;
   }
-  const ext = path.extname(filename);
+  const ext = extname(filename);
   const base = filename.slice(0, filename.length - ext.length);
   let i = 2;
   let candidate = `${base} (${i})${ext}`;
-  while (used.has(candidate)) {
-    i++;
-    candidate = `${base} (${i})${ext}`;
-  }
+  while (used.has(candidate)) candidate = `${base} (${++i})${ext}`;
   used.add(candidate);
   return candidate;
 }

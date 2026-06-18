@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class UpdateSettingsDto {
   @IsOptional() @IsString() prowlarrUrl?: string;
@@ -13,4 +13,5 @@ export class UpdateSettingsDto {
   @IsOptional() @IsString() spotifyClientSecret?: string;
   @IsOptional() @IsString() spotifyRedirectUri?: string;
   @IsOptional() @IsInt() @Min(1) fallbackTimeoutMins?: number;
+  @IsOptional() @IsNumber() @Min(0.1) @Max(1) matchThreshold?: number;
 }

@@ -100,6 +100,11 @@ export default function LibraryPage() {
                         <button type="button" className="btn-sm">Download</button>
                       </a>
                     )}
+                    {r.source === 'azuracast' && r.uniqueId && (
+                      <a href={api.azuracastDownloadUrl(r.id)} download>
+                        <button type="button" className="btn-sm">Download</button>
+                      </a>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -121,14 +126,20 @@ export default function LibraryPage() {
 
 function SourceBadgeWithTooltip({ entry }: { entry: LibraryEntry }) {
   const isNas = entry.source === 'nas';
-  const tooltip = isNas
-    ? (entry.path ?? entry.filename ?? 'NAS file')
-    : entry.stationId ? `Station: ${entry.stationId}` : 'Azuracast';
+  let tooltip: string;
+  if (isNas) {
+    tooltip = entry.path ?? entry.filename ?? 'NAS file';
+  } else {
+    const parts: string[] = [];
+    if (entry.stationId) parts.push(`Station: ${entry.stationId}`);
+    if (entry.path) parts.push(`Path: ${entry.path}`);
+    tooltip = parts.length > 0 ? parts.join('\n') : 'Azuracast';
+  }
 
   return (
     <span
       className={`badge ${isNas ? 'badge-nas' : 'badge-azuracast'}`}
-      data-tooltip={tooltip}
+      title={tooltip}
       style={{ cursor: 'default' }}
     >
       {isNas ? 'NAS' : 'Azuracast'}
