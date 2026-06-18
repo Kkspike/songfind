@@ -144,9 +144,17 @@ export class LidarrService {
       }
 
       const match = allTracks.find((t) => normalize(t.title) === normalizedTitle);
-      await http.put('/album/monitor', { albumIds, monitored: false });
 
-      return match?.albumId ?? null;
+      if (!match) {
+        await http.put('/album/monitor', { albumIds, monitored: false });
+        return null;
+      }
+
+      // Keep the matched album monitored; unmonitor everything else
+      const otherIds = albumIds.filter((id) => id !== match.albumId);
+      if (otherIds.length) await http.put('/album/monitor', { albumIds: otherIds, monitored: false });
+
+      return match.albumId;
     } catch {
       return null;
     }
