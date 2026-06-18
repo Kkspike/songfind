@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { AcquisitionService } from './acquisition.service';
 
 @Controller('acquisition')
@@ -18,6 +18,11 @@ export class AcquisitionController {
   @Get('jobs')
   listJobs() {
     return this.acquisition.listJobs();
+  }
+
+  @Delete('jobs')
+  clearJobs() {
+    return this.acquisition.clearAllJobs();
   }
 
   @Get('pending')

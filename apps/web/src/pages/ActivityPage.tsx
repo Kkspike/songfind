@@ -21,6 +21,7 @@ export default function ActivityPage() {
   const [jobs, setJobs] = useState<JobEntry[]>([]);
   const [approvals, setApprovals] = useState<PendingApproval[]>([]);
   const [loading, setLoading] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [approving, setApproving] = useState<Record<string, boolean>>({});
   const [approveResult, setApproveResult] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -62,9 +63,26 @@ export default function ActivityPage() {
     <div>
       <div className="section-header">
         <h1 style={{ margin: 0 }}>Activity</h1>
-        <button onClick={refresh} disabled={loading}>
-          {loading ? 'Refreshing…' : 'Refresh'}
-        </button>
+        <div className="btn-row">
+          <button onClick={refresh} disabled={loading}>
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+          {jobs.length > 0 && (
+            <button
+              className="btn-danger"
+              disabled={clearing}
+              onClick={async () => {
+                if (!window.confirm(`Clear all ${jobs.length} job(s)? Affected tracks will be reset to missing.`)) return;
+                setClearing(true);
+                try { await api.clearJobs(); await refresh(); }
+                catch (e) { setError(String(e)); }
+                finally { setClearing(false); }
+              }}
+            >
+              {clearing ? 'Clearing…' : 'Clear all jobs'}
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}

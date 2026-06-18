@@ -161,6 +161,7 @@ export const api = {
     request<{ status: string; hasFile: boolean }>(`/lidarr/check/${trackId}`, { method: 'POST' }),
 
   getJobs: () => request<JobEntry[]>('/acquisition/jobs'),
+  clearJobs: () => request<{ deleted: number }>('/acquisition/jobs', { method: 'DELETE' }),
   listPendingApprovals: () => request<PendingApproval[]>('/acquisition/pending'),
   approveCandidate: (jobId: string, videoId: string) =>
     request<{ status: string; trackStatus: string }>(

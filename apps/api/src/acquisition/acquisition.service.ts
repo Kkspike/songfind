@@ -20,6 +20,15 @@ export class AcquisitionService {
     private readonly lidarrAcquisition: LidarrAcquisitionService,
   ) {}
 
+  async clearAllJobs() {
+    await this.prisma.track.updateMany({
+      where: { status: { in: ['acquiring', 'needs_approval'] } },
+      data: { status: 'missing' },
+    });
+    const { count } = await this.prisma.acquisitionJob.deleteMany({});
+    return { deleted: count };
+  }
+
   async recheckAcquiring() {
     const tracks = await this.prisma.track.findMany({
       where: { status: 'acquiring' },
