@@ -56,7 +56,9 @@ export class LidarrService {
 
     if (existing) {
       if (!existing.monitored) {
-        await http.put(`/artist/${existing.id}`, { ...existing, monitored: true });
+        // Fetch the full artist object before PUT — the list endpoint may omit fields Lidarr requires
+        const { data: full } = await http.get<LidarrArtist>(`/artist/${existing.id}`);
+        await http.put(`/artist/${existing.id}`, { ...full, monitored: true });
       }
       return existing;
     }
@@ -97,7 +99,15 @@ export class LidarrService {
       }
     }
 
-    return created;
+    // Fetch the current artist state AFTER RefreshArtist — addOptions.monitor:'none' and/or
+    // the refresh command can reset the artist's monitored flag. Force it back now.
+    const { data: artistNow } = await http.get<LidarrArtist>(`/artist/${created.id}`);
+    if (!artistNow.monitored) {
+      this.logger.log(`Artist "${artistName}" is unmonitored after refresh — forcing monitored=true`);
+      await http.put(`/artist/${created.id}`, { ...artistNow, monitored: true });
+    }
+
+    return { ...created, id: created.id, monitored: true };
   }
 
   async triggerArtistSearch(artistId: number): Promise<void> {
@@ -168,6 +178,7 @@ export class LidarrService {
   async monitorAlbum(albumId: number): Promise<void> {
     const http = await this.client();
     await http.put('/album/monitor', { albumIds: [albumId], monitored: true });
+    this.logger.log(`Album ${albumId} set to monitored`);
   }
 
   async findTrackImportStatus(
