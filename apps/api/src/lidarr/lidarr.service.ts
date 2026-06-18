@@ -126,18 +126,24 @@ export class LidarrService {
         if (match) return match.albumId;
       }
 
-      // Last resort: temporarily monitor all albums to expose track records, then unmonitor.
-      // PUT /album/monitor is a DB-only flag — it does not trigger searches by itself.
+      // Last resort: monitor all albums + RefreshArtist so Lidarr creates track records.
+      // PUT /album/monitor and RefreshArtist do not trigger indexer searches by themselves.
       const { data: albums } = await http.get<{ id: number }[]>('/album', { params: { artistId } });
       if (!albums?.length) return null;
 
       const albumIds = albums.map((a) => a.id);
       await http.put('/album/monitor', { albumIds, monitored: true });
-      await new Promise((r) => setTimeout(r, 1000));
+      await http.post('/command', { name: 'RefreshArtist', artistId });
+      this.logger.log(`Waiting for track records after RefreshArtist (artistId=${artistId})…`);
 
-      const { data: allTracks } = await http.get<LidarrTrack[]>('/track', { params: { artistId } });
-      const match = allTracks?.find((t) => normalize(t.title) === normalizedTitle);
+      let allTracks: LidarrTrack[] = [];
+      for (let i = 0; i < 15; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const { data } = await http.get<LidarrTrack[]>('/track', { params: { artistId } });
+        if (data?.length) { allTracks = data; break; }
+      }
 
+      const match = allTracks.find((t) => normalize(t.title) === normalizedTitle);
       await http.put('/album/monitor', { albumIds, monitored: false });
 
       return match?.albumId ?? null;

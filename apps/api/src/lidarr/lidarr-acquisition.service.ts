@@ -38,7 +38,10 @@ export class LidarrAcquisitionService {
       const albumId = await this.lidarr.findAlbumForTrack(artist.id, track.title, track.album);
 
       if (albumId === null) {
-        throw new Error(`Could not find album for "${track.title}" in Lidarr's track index`);
+        const albumNote = track.album
+          ? ` (looked up album "${track.album}" but it didn't match any Lidarr album)`
+          : ' (album unknown — Spotify/MusicBrainz lookup returned nothing)';
+        throw new Error(`Could not find album for "${track.title}"${albumNote}`);
       }
 
       await this.lidarr.monitorAlbum(albumId);
