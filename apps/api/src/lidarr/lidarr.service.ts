@@ -80,13 +80,14 @@ export class LidarrService {
       addOptions: { monitor: 'none', searchForMissingAlbums: false },
     });
 
-    // Lidarr creates album records asynchronously after add — poll until they appear
-    this.logger.log(`Waiting for Lidarr to index albums for new artist "${artistName}" (id=${created.id})`);
-    for (let i = 0; i < 10; i++) {
+    // Trigger a full refresh so Lidarr populates track records from MusicBrainz
+    await http.post('/command', { name: 'RefreshArtist', artistId: created.id });
+    this.logger.log(`RefreshArtist triggered for "${artistName}" (id=${created.id}), waiting for tracks…`);
+    for (let i = 0; i < 15; i++) {
       await new Promise((r) => setTimeout(r, 2000));
-      const { data: albums } = await http.get<{ id: number }[]>('/album', { params: { artistId: created.id } });
-      if (albums?.length) {
-        this.logger.log(`Albums indexed after ${(i + 1) * 2}s — ${albums.length} albums found`);
+      const { data: tracks } = await http.get<LidarrTrack[]>('/track', { params: { artistId: created.id } });
+      if (tracks?.length) {
+        this.logger.log(`Tracks ready after ${(i + 1) * 2}s — ${tracks.length} tracks`);
         break;
       }
     }
