@@ -3,6 +3,7 @@ import { parse } from 'csv-parse/sync';
 export interface ParsedEntry {
   artist: string;
   title: string;
+  album?: string;
 }
 
 const LINE_SEPARATORS = [' - ', ' – ', ' — ', '\t'];

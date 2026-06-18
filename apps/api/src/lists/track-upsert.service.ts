@@ -19,8 +19,8 @@ export class TrackUpsertService {
 
     const track = await this.prisma.track.upsert({
       where: { artistId_normalizedTitle: { artistId: artist.id, normalizedTitle } },
-      create: { artistId: artist.id, title: entry.title, normalizedTitle },
-      update: {},
+      create: { artistId: artist.id, title: entry.title, normalizedTitle, album: entry.album },
+      update: entry.album ? { album: entry.album } : {},
     });
 
     // Reset stuck transient states so matching can re-evaluate on re-import

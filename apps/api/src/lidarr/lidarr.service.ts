@@ -105,20 +105,29 @@ export class LidarrService {
     await http.post('/command', { name: 'ArtistSearch', artistIds: [artistId] });
   }
 
-  async findAlbumForTrack(artistId: number, trackTitle: string): Promise<number | null> {
+  async findAlbumForTrack(artistId: number, trackTitle: string, albumName?: string | null): Promise<number | null> {
     try {
       const http = await this.client();
-      const normalizedTarget = normalize(trackTitle);
 
-      // Fast path: works when the artist already has monitored albums with indexed tracks
+      // Best path: match by album title directly — no track queries, no monitoring needed
+      if (albumName) {
+        const { data: albums } = await http.get<{ id: number; title: string }[]>('/album', { params: { artistId } });
+        const normalizedAlbum = normalize(albumName);
+        const match = albums?.find((a) => normalize(a.title) === normalizedAlbum);
+        if (match) return match.id;
+      }
+
+      const normalizedTitle = normalize(trackTitle);
+
+      // Fast path: works when artist already has monitored albums with indexed tracks
       const { data: artistTracks } = await http.get<LidarrTrack[]>('/track', { params: { artistId } });
       if (artistTracks?.length) {
-        const match = artistTracks.find((t) => normalize(t.title) === normalizedTarget);
+        const match = artistTracks.find((t) => normalize(t.title) === normalizedTitle);
         if (match) return match.albumId;
       }
 
-      // Lidarr only returns track records for monitored albums.
-      // Temporarily monitor all albums so their tracks become queryable, then unmonitor.
+      // Last resort: temporarily monitor all albums to expose track records, then unmonitor.
+      // PUT /album/monitor is a DB-only flag — it does not trigger searches by itself.
       const { data: albums } = await http.get<{ id: number }[]>('/album', { params: { artistId } });
       if (!albums?.length) return null;
 
@@ -127,7 +136,7 @@ export class LidarrService {
       await new Promise((r) => setTimeout(r, 1000));
 
       const { data: allTracks } = await http.get<LidarrTrack[]>('/track', { params: { artistId } });
-      const match = allTracks?.find((t) => normalize(t.title) === normalizedTarget);
+      const match = allTracks?.find((t) => normalize(t.title) === normalizedTitle);
 
       await http.put('/album/monitor', { albumIds, monitored: false });
 

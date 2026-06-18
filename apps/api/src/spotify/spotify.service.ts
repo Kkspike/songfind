@@ -7,7 +7,7 @@ const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const SCOPES = 'user-library-read playlist-read-private';
 
 interface SpotifyTrackItem {
-  track: { name: string; artists: { name: string }[] } | null;
+  track: { name: string; artists: { name: string }[]; album: { name: string } } | null;
 }
 
 export interface SpotifyPlaylist {
@@ -19,6 +19,7 @@ export interface SpotifyPlaylist {
 export interface SpotifyImportEntry {
   artist: string;
   title: string;
+  album?: string;
 }
 
 @Injectable()
@@ -95,7 +96,9 @@ export class SpotifyService {
       for (const item of data.items as SpotifyTrackItem[]) {
         if (!item.track) continue;
         const artist = item.track.artists[0]?.name;
-        if (artist && item.track.name) entries.push({ artist, title: item.track.name });
+        if (artist && item.track.name) {
+          entries.push({ artist, title: item.track.name, album: item.track.album?.name });
+        }
       }
       url = data.next ? data.next.replace('https://api.spotify.com/v1', '') : null;
     }

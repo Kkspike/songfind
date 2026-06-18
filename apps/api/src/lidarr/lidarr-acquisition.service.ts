@@ -24,7 +24,7 @@ export class LidarrAcquisitionService {
 
     try {
       const artist = await this.lidarr.ensureArtistMonitored(track.artist.name);
-      const albumId = await this.lidarr.findAlbumForTrack(artist.id, track.title);
+      const albumId = await this.lidarr.findAlbumForTrack(artist.id, track.title, track.album);
 
       if (albumId === null) {
         throw new Error(`Could not find album for "${track.title}" in Lidarr's track index`);
