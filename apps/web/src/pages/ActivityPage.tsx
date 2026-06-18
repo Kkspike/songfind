@@ -110,6 +110,11 @@ export default function ActivityPage() {
                   <tr key={job.id}>
                     <td style={{ color: 'var(--text-heading)' }}>
                       {job.track.artist} — {job.track.title}
+                      {job.errorMessage && (
+                        <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 2 }}>
+                          {job.errorMessage}
+                        </div>
+                      )}
                     </td>
                     <td>
                       <span className={`badge ${job.source === 'lidarr' ? 'badge-lidarr' : 'badge-youtube'}`}>

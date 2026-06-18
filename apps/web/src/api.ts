@@ -50,6 +50,7 @@ export interface JobEntry {
   source: 'lidarr' | 'youtube';
   status: string;
   track: { id: string; title: string; artist: string };
+  errorMessage: string | null;
   createdAt: string;
   updatedAt: string;
 }

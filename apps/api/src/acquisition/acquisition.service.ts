@@ -100,14 +100,20 @@ export class AcquisitionService {
       orderBy: { updatedAt: 'desc' },
       take: 100,
     });
-    return jobs.map((job) => ({
-      id: job.id,
-      source: job.source,
-      status: job.status,
-      track: { id: job.track.id, title: job.track.title, artist: job.track.artist.name },
-      createdAt: job.createdAt,
-      updatedAt: job.updatedAt,
-    }));
+    return jobs.map((job) => {
+      const attempts = job.attempts as any[];
+      const lastAttempt = attempts?.at(-1);
+      const errorMessage = job.status === 'failed' ? (lastAttempt?.message ?? null) : null;
+      return {
+        id: job.id,
+        source: job.source,
+        status: job.status,
+        track: { id: job.track.id, title: job.track.title, artist: job.track.artist.name },
+        errorMessage,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+      };
+    });
   }
 
   async listPendingApprovals() {
