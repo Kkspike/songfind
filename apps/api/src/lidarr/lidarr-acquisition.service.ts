@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LidarrService } from './lidarr.service';
 
@@ -14,6 +14,9 @@ export class LidarrAcquisitionService {
   async acquire(trackId: string) {
     const track = await this.prisma.track.findUnique({ where: { id: trackId }, include: { artist: true } });
     if (!track) throw new NotFoundException('Track not found');
+    if (track.status !== 'missing') {
+      throw new BadRequestException(`Track is already "${track.status}" — only missing tracks can be acquired`);
+    }
 
     const job = await this.prisma.acquisitionJob.create({
       data: { trackId, source: 'lidarr', status: 'searching' },

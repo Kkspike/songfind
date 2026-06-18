@@ -1,15 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrackUpsertService } from '../lists/track-upsert.service';
 import { MatchingService } from '../matching/matching.service';
+import { AzuracastService } from '../azuracast/azuracast.service';
 import { SpotifyService } from './spotify.service';
 
 @Injectable()
 export class SpotifyImportService {
+  private readonly logger = new Logger(SpotifyImportService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly trackUpsert: TrackUpsertService,
     private readonly matching: MatchingService,
+    private readonly azuracast: AzuracastService,
     private readonly spotify: SpotifyService,
   ) {}
 
@@ -42,6 +46,11 @@ export class SpotifyImportService {
       }
     }
 
+    try {
+      await this.azuracast.poll();
+    } catch (err) {
+      this.logger.warn('Azuracast poll failed during Spotify import — matching may be incomplete', err);
+    }
     await this.matching.rematchAllMissingTracks();
     return { listId: list.id, listName: list.name, parsed: entries.length, added, skipped };
   }
