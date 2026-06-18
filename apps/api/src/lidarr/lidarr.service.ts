@@ -80,6 +80,17 @@ export class LidarrService {
       addOptions: { monitor: 'none', searchForMissingAlbums: false },
     });
 
+    // Lidarr populates track metadata asynchronously after add — poll until data is ready
+    this.logger.log(`Waiting for Lidarr to index tracks for new artist "${artistName}" (id=${created.id})`);
+    for (let i = 0; i < 10; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const { data: tracks } = await http.get<LidarrTrack[]>('/track', { params: { artistId: created.id } });
+      if (tracks?.length) {
+        this.logger.log(`Tracks indexed after ${(i + 1) * 2}s — ${tracks.length} tracks found`);
+        break;
+      }
+    }
+
     return created;
   }
 
