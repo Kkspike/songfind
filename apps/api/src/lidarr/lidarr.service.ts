@@ -25,12 +25,6 @@ interface LidarrTrack {
   albumId: number;
 }
 
-interface LidarrAlbum {
-  id: number;
-  title: string;
-  releaseDate: string;
-  monitored: boolean;
-}
 
 @Injectable()
 export class LidarrService {
@@ -97,25 +91,11 @@ export class LidarrService {
   async findAlbumForTrack(artistId: number, trackTitle: string): Promise<number | null> {
     try {
       const http = await this.client();
+      const { data } = await http.get<LidarrTrack[]>('/track', { params: { artistId } });
+      if (!data?.length) return null;
       const normalizedTarget = normalize(trackTitle);
-
-      // Fast path: artist-level track index (populated once albums have been monitored before)
-      const { data: artistTracks } = await http.get<LidarrTrack[]>('/track', { params: { artistId } });
-      if (artistTracks?.length) {
-        const match = artistTracks.find((t) => normalize(t.title) === normalizedTarget);
-        if (match) return match.albumId;
-      }
-
-      // Thorough path: check each album's track listing from MusicBrainz metadata
-      const albums = await this.getArtistAlbums(artistId);
-      for (const album of albums) {
-        const { data: tracks } = await http.get<LidarrTrack[]>('/track', { params: { albumId: album.id } });
-        if (tracks?.some((t) => normalize(t.title) === normalizedTarget)) {
-          return album.id;
-        }
-      }
-
-      return null;
+      const match = data.find((t) => normalize(t.title) === normalizedTarget);
+      return match?.albumId ?? null;
     } catch {
       return null;
     }
@@ -124,16 +104,6 @@ export class LidarrService {
   async triggerAlbumSearch(albumId: number): Promise<void> {
     const http = await this.client();
     await http.post('/command', { name: 'AlbumSearch', albumIds: [albumId] });
-  }
-
-  async getArtistAlbums(artistId: number): Promise<LidarrAlbum[]> {
-    try {
-      const http = await this.client();
-      const { data } = await http.get<LidarrAlbum[]>('/album', { params: { artistId } });
-      return data ?? [];
-    } catch {
-      return [];
-    }
   }
 
   async monitorAlbum(albumId: number): Promise<void> {
