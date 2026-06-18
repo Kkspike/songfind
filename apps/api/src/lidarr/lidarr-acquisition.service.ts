@@ -24,11 +24,21 @@ export class LidarrAcquisitionService {
 
     try {
       const artist = await this.lidarr.ensureArtistMonitored(track.artist.name);
-      await this.lidarr.triggerArtistSearch(artist.id);
+      const albumId = await this.lidarr.findAlbumForTrack(artist.id, track.title);
+
+      let action: string;
+      if (albumId !== null) {
+        await this.lidarr.triggerAlbumSearch(albumId);
+        action = 'triggered_album_search';
+      } else {
+        await this.lidarr.triggerArtistSearch(artist.id);
+        action = 'triggered_artist_search';
+      }
+
       await this.prisma.track.update({ where: { id: trackId }, data: { status: 'acquiring' } });
       return this.prisma.acquisitionJob.update({
         where: { id: job.id },
-        data: { attempts: [{ at: new Date().toISOString(), action: 'triggered_artist_search', lidarrArtistId: artist.id }] },
+        data: { attempts: [{ at: new Date().toISOString(), action, lidarrArtistId: artist.id, lidarrAlbumId: albumId }] },
       });
     } catch (err) {
       this.logger.error(`Lidarr acquisition failed for track ${trackId}`, err);
