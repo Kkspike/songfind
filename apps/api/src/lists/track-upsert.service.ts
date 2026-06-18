@@ -23,6 +23,11 @@ export class TrackUpsertService {
       update: {},
     });
 
+    // Reset stuck transient states so matching can re-evaluate on re-import
+    if (track.status === 'acquiring' || track.status === 'needs_approval') {
+      return this.prisma.track.update({ where: { id: track.id }, data: { status: 'missing' } });
+    }
+
     return track;
   }
 }
