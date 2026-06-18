@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LidarrService } from './lidarr.service';
+import { AlbumLookupService } from './album-lookup.service';
 
 @Injectable()
 export class LidarrAcquisitionService {
@@ -9,10 +10,11 @@ export class LidarrAcquisitionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly lidarr: LidarrService,
+    private readonly albumLookup: AlbumLookupService,
   ) {}
 
   async acquire(trackId: string) {
-    const track = await this.prisma.track.findUnique({ where: { id: trackId }, include: { artist: true } });
+    let track = await this.prisma.track.findUnique({ where: { id: trackId }, include: { artist: true } });
     if (!track) throw new NotFoundException('Track not found');
     if (track.status !== 'missing') {
       throw new BadRequestException(`Track is already "${track.status}" — only missing tracks can be acquired`);
@@ -23,6 +25,15 @@ export class LidarrAcquisitionService {
     });
 
     try {
+      // If album name is unknown, look it up from Spotify / MusicBrainz and persist it
+      if (!track.album) {
+        const albumName = await this.albumLookup.lookupAlbumName(track.artist.name, track.title);
+        if (albumName) {
+          await this.prisma.track.update({ where: { id: trackId }, data: { album: albumName } });
+          track = { ...track, album: albumName };
+        }
+      }
+
       const artist = await this.lidarr.ensureArtistMonitored(track.artist.name);
       const albumId = await this.lidarr.findAlbumForTrack(artist.id, track.title, track.album);
 
