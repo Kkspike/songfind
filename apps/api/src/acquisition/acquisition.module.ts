@@ -10,5 +10,6 @@ import { LidarrModule } from '../lidarr/lidarr.module';
   imports: [MatchingModule, NasScannerModule, YoutubeFallbackModule, LidarrModule],
   controllers: [AcquisitionController],
   providers: [AcquisitionService],
+  exports: [AcquisitionService],
 })
 export class AcquisitionModule {}

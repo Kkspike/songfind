@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
+import { SchedulerService } from '../scheduler/scheduler.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 
 export interface TestResult {
@@ -10,7 +11,10 @@ export interface TestResult {
 
 @Injectable()
 export class SettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly scheduler: SchedulerService,
+  ) {}
 
   async get() {
     const settings = await this.prisma.settings.findUnique({ where: { id: 1 } });
@@ -27,6 +31,7 @@ export class SettingsService {
       create: { id: 1, ...dto },
       update: dto,
     });
+    await this.scheduler.applySchedules();
     return this.get();
   }
 

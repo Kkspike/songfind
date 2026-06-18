@@ -13,6 +13,7 @@ import { AcquisitionModule } from './acquisition/acquisition.module';
 import { SpotifyModule } from './spotify/spotify.module';
 import { SettingsModule } from './settings/settings.module';
 import { LibraryModule } from './library/library.module';
+import { SchedulerModule } from './scheduler/scheduler.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { LibraryModule } from './library/library.module';
     SpotifyModule,
     SettingsModule,
     LibraryModule,
+    SchedulerModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', '..', 'web', 'dist'),
       exclude: ['/api{/*path}', '/spotify/callback'],

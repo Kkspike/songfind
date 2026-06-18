@@ -7,5 +7,6 @@ import { MatchingModule } from '../matching/matching.module';
   imports: [MatchingModule],
   controllers: [AzuracastController],
   providers: [AzuracastService],
+  exports: [AzuracastService],
 })
 export class AzuracastModule {}

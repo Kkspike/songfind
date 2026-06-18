@@ -100,6 +100,9 @@ export interface Settings {
   spotifyRedirectUri: string | null;
   fallbackTimeoutMins: number;
   matchThreshold: number;
+  scanIntervalMins: number;
+  azuracastPollIntervalMins: number;
+  recheckIntervalMins: number;
   spotifyConnected: boolean;
 }
 

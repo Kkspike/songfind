@@ -202,6 +202,25 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        <div className="card">
+          <h2>Scheduling</h2>
+          <p className="meta" style={{ marginBottom: 12 }}>Set to 0 to disable automatic runs.</p>
+          <div className="form-grid-2">
+            <div className="form-field">
+              <label>NAS scan interval (minutes)</label>
+              <input type="number" {...field('scanIntervalMins')} min={0} />
+            </div>
+            <div className="form-field">
+              <label>Azuracast poll interval (minutes)</label>
+              <input type="number" {...field('azuracastPollIntervalMins')} min={0} />
+            </div>
+            <div className="form-field">
+              <label>Acquiring recheck interval (minutes)</label>
+              <input type="number" {...field('recheckIntervalMins')} min={0} />
+            </div>
+          </div>
+        </div>
+
         <div className="btn-row" style={{ marginBottom: 32 }}>
           <button type="submit" className="btn-primary">Save settings</button>
         </div>

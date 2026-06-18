@@ -14,4 +14,7 @@ export class UpdateSettingsDto {
   @IsOptional() @IsString() spotifyRedirectUri?: string;
   @IsOptional() @IsInt() @Min(1) fallbackTimeoutMins?: number;
   @IsOptional() @IsNumber() @Min(0.1) @Max(1) matchThreshold?: number;
+  @IsOptional() @IsInt() @Min(0) scanIntervalMins?: number;
+  @IsOptional() @IsInt() @Min(0) azuracastPollIntervalMins?: number;
+  @IsOptional() @IsInt() @Min(0) recheckIntervalMins?: number;
 }

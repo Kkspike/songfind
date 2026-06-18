@@ -145,6 +145,9 @@ model Settings {
   spotifyRedirectUri   String?
   spotifyAccessToken   String?
   spotifyRefreshToken  String?
-  fallbackTimeoutMins  Int     @default(30)
-  matchThreshold       Float   @default(0.82)
+  fallbackTimeoutMins       Int   @default(30)
+  matchThreshold            Float @default(0.82)
+  scanIntervalMins          Int   @default(60)
+  azuracastPollIntervalMins Int   @default(60)
+  recheckIntervalMins       Int   @default(30)
 }
