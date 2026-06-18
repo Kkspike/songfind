@@ -25,6 +25,13 @@ interface LidarrTrack {
   albumId: number;
 }
 
+interface LidarrAlbum {
+  id: number;
+  title: string;
+  releaseDate: string;
+  monitored: boolean;
+}
+
 @Injectable()
 export class LidarrService {
   private readonly logger = new Logger(LidarrService.name);
@@ -76,7 +83,7 @@ export class LidarrService {
       rootFolderPath: rootFolder.path,
       qualityProfileId: rootFolder.defaultQualityProfileId,
       metadataProfileId: rootFolder.defaultMetadataProfileId,
-      addOptions: { monitor: 'all', searchForMissingAlbums: false },
+      addOptions: { monitor: 'none', searchForMissingAlbums: false },
     });
 
     return created;
@@ -103,6 +110,21 @@ export class LidarrService {
   async triggerAlbumSearch(albumId: number): Promise<void> {
     const http = await this.client();
     await http.post('/command', { name: 'AlbumSearch', albumIds: [albumId] });
+  }
+
+  async getArtistAlbums(artistId: number): Promise<LidarrAlbum[]> {
+    try {
+      const http = await this.client();
+      const { data } = await http.get<LidarrAlbum[]>('/album', { params: { artistId } });
+      return data ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  async monitorAlbum(albumId: number): Promise<void> {
+    const http = await this.client();
+    await http.put('/album/monitor', { albumIds: [albumId], monitored: true });
   }
 
   async findTrackImportStatus(
