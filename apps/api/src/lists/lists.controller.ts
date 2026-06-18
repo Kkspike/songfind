@@ -6,6 +6,7 @@ import {
   HttpCode,
   Param,
   Post,
+  Query,
   Res,
   UploadedFile,
   UseInterceptors,
@@ -65,7 +66,11 @@ export class ListsController {
   }
 
   @Get(':id/export')
-  exportZip(@Param('id') id: string, @Res() res: Response) {
-    return this.exportService.streamZip(id, res);
+  exportZip(
+    @Param('id') id: string,
+    @Res() res: Response,
+    @Query('includeAzuracast') includeAzuracast?: string,
+  ) {
+    return this.exportService.streamZip(id, res, includeAzuracast === 'true');
   }
 }

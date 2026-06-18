@@ -16,6 +16,7 @@ export default function ListDetailPage() {
   const [acquireAll, setAcquireAll] = useState<{ done: number; total: number } | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('position');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [includeAzuracast, setIncludeAzuracast] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const requestSeq = useRef(0);
 
@@ -163,12 +164,26 @@ export default function ListDetailPage() {
           )}
           {(() => {
             const ownedCount = list.items.filter((i) => i.track.status === 'owned').length;
+            const azCount = list.items.filter((i) => i.track.status === 'available_on_azuracast').length;
+            const exportCount = ownedCount + (includeAzuracast ? azCount : 0);
+            const label = includeAzuracast
+              ? `Export zip (${ownedCount} NAS + ${azCount} Azuracast)`
+              : `Export zip (${ownedCount} owned)`;
             return (
-              <a href={api.exportZipUrl(list.id)} title={ownedCount === 0 ? 'No owned NAS tracks in this list' : undefined}>
-                <button type="button" disabled={ownedCount === 0}>
-                  Export zip ({ownedCount} owned)
-                </button>
-              </a>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={includeAzuracast}
+                    onChange={(e) => setIncludeAzuracast(e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  Include Azuracast
+                </label>
+                <a href={api.exportZipUrl(list.id, includeAzuracast)} title={exportCount === 0 ? 'No exportable tracks in this list' : undefined}>
+                  <button type="button" disabled={exportCount === 0}>{label}</button>
+                </a>
+              </div>
             );
           })()}
         </div>

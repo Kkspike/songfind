@@ -143,7 +143,8 @@ export const api = {
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     return res.json() as Promise<{ parsed: number; added: number; skipped: number }>;
   },
-  exportZipUrl: (listId: string) => `${API_BASE}/lists/${listId}/export`,
+  exportZipUrl: (listId: string, includeAzuracast = false) =>
+    `${API_BASE}/lists/${listId}/export${includeAzuracast ? '?includeAzuracast=true' : ''}`,
 
   getSettings: () => request<Settings>('/settings'),
   updateSettings: (dto: Partial<Settings>) =>
