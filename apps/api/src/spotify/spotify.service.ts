@@ -61,8 +61,16 @@ export class SpotifyService {
 
   async listPlaylists(): Promise<SpotifyPlaylist[]> {
     const http = await this.authedClient();
-    const { data } = await http.get('/me/playlists', { params: { limit: 50 } });
-    return data.items.map((p: any) => ({ id: p.id, name: p.name, trackCount: p.tracks.total }));
+    const playlists: SpotifyPlaylist[] = [];
+    let url: string | null = '/me/playlists?limit=50';
+    while (url) {
+      const { data } = await http.get(url);
+      for (const p of data.items) {
+        playlists.push({ id: p.id, name: p.name, trackCount: p.tracks.total });
+      }
+      url = data.next ? data.next.replace('https://api.spotify.com/v1', '') : null;
+    }
+    return playlists;
   }
 
   async getPlaylistTracks(playlistId: string): Promise<SpotifyImportEntry[]> {
