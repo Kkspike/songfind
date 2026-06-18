@@ -24,30 +24,15 @@ export class LidarrAcquisitionService {
 
     try {
       const artist = await this.lidarr.ensureArtistMonitored(track.artist.name);
+      const albumId = await this.lidarr.findAlbumForTrack(artist.id, track.title);
 
-      // Try to find album via indexed tracks first (works when artist was already in Lidarr)
-      let albumId = await this.lidarr.findAlbumForTrack(artist.id, track.title);
-
-      // For newly-added artists, no tracks are indexed yet — fall back to most recent album
       if (albumId === null) {
-        const albums = await this.lidarr.getArtistAlbums(artist.id);
-        if (albums.length) {
-          const sorted = albums.slice().sort(
-            (a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime(),
-          );
-          albumId = sorted[0].id;
-        }
+        throw new Error(`Could not find album for "${track.title}" in Lidarr's track index`);
       }
 
-      let action: string;
-      if (albumId !== null) {
-        await this.lidarr.monitorAlbum(albumId);
-        await this.lidarr.triggerAlbumSearch(albumId);
-        action = 'triggered_album_search';
-      } else {
-        await this.lidarr.triggerArtistSearch(artist.id);
-        action = 'triggered_artist_search';
-      }
+      await this.lidarr.monitorAlbum(albumId);
+      await this.lidarr.triggerAlbumSearch(albumId);
+      const action = 'triggered_album_search';
 
       await this.prisma.track.update({ where: { id: trackId }, data: { status: 'acquiring' } });
       return this.prisma.acquisitionJob.update({
