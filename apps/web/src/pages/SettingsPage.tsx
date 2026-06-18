@@ -169,7 +169,7 @@ export default function SettingsPage() {
             <input {...field('spotifyRedirectUri')} placeholder="http://localhost:3000/spotify/callback" />
           </div>
           <div className="btn-row">
-            <a href={api.spotifyLoginUrl()}>
+            <a href={api.spotifyLoginUrl()} target="_blank" rel="noreferrer">
               <button type="button" className="btn-sm">Connect Spotify</button>
             </a>
           </div>
