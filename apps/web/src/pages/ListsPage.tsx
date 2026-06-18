@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, type ListSummary } from '../api';
+import SpotifyImportModal from '../components/SpotifyImportModal';
 
 export default function ListsPage() {
+  const navigate = useNavigate();
   const [lists, setLists] = useState<ListSummary[]>([]);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [showSpotifyModal, setShowSpotifyModal] = useState(false);
 
   function refresh() {
     api.getLists().then(setLists).catch((e) => setError(String(e)));
@@ -30,14 +33,21 @@ export default function ListsPage() {
     refresh();
   }
 
+  function handleSpotifyClose(newListId?: string) {
+    setShowSpotifyModal(false);
+    if (newListId) navigate(`/lists/${newListId}`);
+  }
+
   return (
     <div>
+      {showSpotifyModal && <SpotifyImportModal onClose={handleSpotifyClose} />}
+
       <h1>Lists</h1>
 
       {error && <div className="alert alert-error">{error}</div>}
 
       <div className="card" style={{ marginBottom: 24 }}>
-        <form onSubmit={handleCreate} style={{ display: 'flex', gap: 10 }}>
+        <form onSubmit={handleCreate} style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -46,6 +56,11 @@ export default function ListsPage() {
           />
           <button type="submit" className="btn-primary">Create list</button>
         </form>
+        <div>
+          <button type="button" onClick={() => setShowSpotifyModal(true)} style={{ background: '#1DB954', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>
+            Import from Spotify
+          </button>
+        </div>
       </div>
 
       {lists.length === 0 ? (

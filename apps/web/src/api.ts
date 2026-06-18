@@ -85,6 +85,20 @@ export interface TestResult {
   message: string;
 }
 
+export interface SpotifyPlaylist {
+  id: string;
+  name: string;
+  trackCount: number;
+}
+
+export interface SpotifyImportResult {
+  listId: string;
+  listName: string;
+  parsed: number;
+  added: number;
+  skipped: number;
+}
+
 export interface Settings {
   id: number;
   prowlarrUrl: string | null;
@@ -135,6 +149,10 @@ export const api = {
   updateSettings: (dto: Partial<Settings>) =>
     request<Settings>('/settings', { method: 'PUT', body: JSON.stringify(dto) }),
   spotifyLoginUrl: () => `${API_BASE}/spotify/login`,
+  getSpotifyPlaylists: () => request<SpotifyPlaylist[]>('/spotify/playlists'),
+  importSpotifyLikedSongs: () => request<SpotifyImportResult>('/spotify/import/liked-songs', { method: 'POST' }),
+  importSpotifyPlaylist: (playlistId: string) =>
+    request<SpotifyImportResult>(`/spotify/import/playlist/${playlistId}`, { method: 'POST' }),
 
   acquireTrack: (trackId: string) =>
     request<unknown>(`/lidarr/acquire/${trackId}`, { method: 'POST' }),
