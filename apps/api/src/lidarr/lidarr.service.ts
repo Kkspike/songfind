@@ -56,8 +56,9 @@ export class LidarrService {
 
     if (existing) {
       if (!existing.monitored) {
-        // Fetch the full artist object before PUT — the list endpoint may omit fields Lidarr requires
+        // GET /artist/{id} for the full object — the list endpoint may omit fields Lidarr requires for PUT
         const { data: full } = await http.get<LidarrArtist>(`/artist/${existing.id}`);
+        this.logger.log(`Artist "${artistName}" is unmonitored — setting monitored=true`);
         await http.put(`/artist/${existing.id}`, { ...full, monitored: true });
       }
       return existing;
@@ -78,16 +79,18 @@ export class LidarrService {
       metadataProfiles.find((p) => p.name.toLowerCase() === 'standard') ?? metadataProfiles[0];
     if (!metadataProfile) throw new Error('No Lidarr metadata profile found');
 
+    // monitor:'all' keeps the artist monitored (monitor:'none' forces artist.monitored=false in Lidarr).
+    // searchForMissingAlbums:false prevents automatic searches — we trigger the target album search manually.
     const { data: created } = await http.post<LidarrArtist>('/artist', {
       ...best,
       monitored: true,
       rootFolderPath: rootFolder.path,
       qualityProfileId: rootFolder.defaultQualityProfileId,
       metadataProfileId: metadataProfile.id,
-      addOptions: { monitor: 'none', searchForMissingAlbums: false },
+      addOptions: { monitor: 'all', searchForMissingAlbums: false },
     });
 
-    // Trigger a refresh so Lidarr fetches full album metadata from MusicBrainz
+    // Trigger a refresh so Lidarr fetches full album metadata and indexes tracks
     await http.post('/command', { name: 'RefreshArtist', artistId: created.id });
     this.logger.log(`RefreshArtist triggered for "${artistName}" (id=${created.id}), waiting for albums…`);
     for (let i = 0; i < 5; i++) {
@@ -99,15 +102,7 @@ export class LidarrService {
       }
     }
 
-    // Fetch the current artist state AFTER RefreshArtist — addOptions.monitor:'none' and/or
-    // the refresh command can reset the artist's monitored flag. Force it back now.
-    const { data: artistNow } = await http.get<LidarrArtist>(`/artist/${created.id}`);
-    if (!artistNow.monitored) {
-      this.logger.log(`Artist "${artistName}" is unmonitored after refresh — forcing monitored=true`);
-      await http.put(`/artist/${created.id}`, { ...artistNow, monitored: true });
-    }
-
-    return { ...created, id: created.id, monitored: true };
+    return { ...created, monitored: true };
   }
 
   async triggerArtistSearch(artistId: number): Promise<void> {
@@ -119,24 +114,32 @@ export class LidarrService {
     try {
       const http = await this.client();
 
-      // Best path: match by album title directly — no track queries, no monitoring needed
+      // Best path: match by album title — no track queries needed
       if (albumName) {
         const { data: albums } = await http.get<{ id: number; title: string }[]>('/album', { params: { artistId } });
         const normalizedAlbum = normalize(albumName);
         const match = albums?.find((a) => normalize(a.title) === normalizedAlbum);
-        if (match) return match.id;
+        if (match) {
+          this.logger.log(`Album matched by title: "${albumName}" → id=${match.id}`);
+          return match.id;
+        }
+        this.logger.log(`Album name "${albumName}" not matched in Lidarr — falling through to track search`);
       }
 
       const normalizedTitle = normalize(trackTitle);
 
-      // Fast path: works when artist already has monitored albums with indexed tracks
+      // Fast path: works for monitored albums (new artists added with monitor:'all', or previously monitored)
       const { data: artistTracks } = await http.get<LidarrTrack[]>('/track', { params: { artistId } });
       if (artistTracks?.length) {
         const match = artistTracks.find((t) => normalize(t.title) === normalizedTitle);
-        if (match) return match.albumId;
+        if (match) {
+          this.logger.log(`Track "${trackTitle}" found via artist track index → albumId=${match.albumId}`);
+          return match.albumId;
+        }
       }
 
-      // Last resort: monitor all albums + RefreshArtist so Lidarr creates track records.
+      // Last resort: temporarily monitor all albums + RefreshArtist to force track indexing.
+      // Used for existing artists added with monitor:'none' (old behavior) whose albums are unmonitored.
       // PUT /album/monitor and RefreshArtist do not trigger indexer searches by themselves.
       const { data: albums } = await http.get<{ id: number }[]>('/album', { params: { artistId } });
       if (!albums?.length) return null;
@@ -144,7 +147,7 @@ export class LidarrService {
       const albumIds = albums.map((a) => a.id);
       await http.put('/album/monitor', { albumIds, monitored: true });
       await http.post('/command', { name: 'RefreshArtist', artistId });
-      this.logger.log(`Waiting for track records after RefreshArtist (artistId=${artistId})…`);
+      this.logger.log(`Last-resort: monitoring all ${albumIds.length} albums + RefreshArtist for artistId=${artistId}`);
 
       let allTracks: LidarrTrack[] = [];
       for (let i = 0; i < 15; i++) {
@@ -154,16 +157,14 @@ export class LidarrService {
       }
 
       const match = allTracks.find((t) => normalize(t.title) === normalizedTitle);
-
       if (!match) {
+        // No match — unmonitor everything we just enabled
         await http.put('/album/monitor', { albumIds, monitored: false });
         return null;
       }
 
-      // Keep the matched album monitored; unmonitor everything else
-      const otherIds = albumIds.filter((id) => id !== match.albumId);
-      if (otherIds.length) await http.put('/album/monitor', { albumIds: otherIds, monitored: false });
-
+      this.logger.log(`Track "${trackTitle}" found via last-resort scan → albumId=${match.albumId}`);
+      // Leave all albums monitored for now — monitorOnlyAlbum() in acquire() will clean up
       return match.albumId;
     } catch {
       return null;
@@ -175,10 +176,18 @@ export class LidarrService {
     await http.post('/command', { name: 'AlbumSearch', albumIds: [albumId] });
   }
 
-  async monitorAlbum(albumId: number): Promise<void> {
+  // Ensures exactly one album is monitored for the artist: the target. All others are unmonitored.
+  async monitorOnlyAlbum(artistId: number, albumId: number): Promise<void> {
     const http = await this.client();
+    const { data: albums } = await http.get<{ id: number }[]>('/album', { params: { artistId } });
+    const allIds = albums.map((a) => a.id);
+    const otherIds = allIds.filter((id) => id !== albumId);
+
     await http.put('/album/monitor', { albumIds: [albumId], monitored: true });
-    this.logger.log(`Album ${albumId} set to monitored`);
+    if (otherIds.length) {
+      await http.put('/album/monitor', { albumIds: otherIds, monitored: false });
+    }
+    this.logger.log(`monitorOnlyAlbum: album ${albumId} monitored, ${otherIds.length} others unmonitored`);
   }
 
   async findTrackImportStatus(

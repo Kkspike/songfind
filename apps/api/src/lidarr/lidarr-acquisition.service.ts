@@ -44,7 +44,7 @@ export class LidarrAcquisitionService {
         throw new Error(`Could not find album for "${track.title}"${albumNote}`);
       }
 
-      await this.lidarr.monitorAlbum(albumId);
+      await this.lidarr.monitorOnlyAlbum(artist.id, albumId);
       await this.lidarr.triggerAlbumSearch(albumId);
       const action = 'triggered_album_search';
 
