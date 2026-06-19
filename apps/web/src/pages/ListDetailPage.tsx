@@ -152,10 +152,10 @@ export default function ListDetailPage() {
       </div>
 
       <div className="section-header">
-        <h2 style={{ marginBottom: 0, textTransform: 'none', letterSpacing: 0, fontSize: 15 }}>
-          Tracks <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({list.items.length})</span>
-        </h2>
-        <div className="btn-row">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <h2 style={{ marginBottom: 0, textTransform: 'none', letterSpacing: 0, fontSize: 15 }}>
+            Tracks <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({list.items.length})</span>
+          </h2>
           {list.items.some((i) => i.track.status === 'missing') && (
             <button
               type="button"
@@ -168,6 +168,8 @@ export default function ListDetailPage() {
                 : `Acquire all missing (${list.items.filter((i) => i.track.status === 'missing').length})`}
             </button>
           )}
+        </div>
+        <div className="btn-row">
           {(() => {
             const ownedCount = list.items.filter((i) => i.track.status === 'owned').length;
             const azCount = list.items.filter((i) => i.track.status === 'available_on_azuracast').length;
