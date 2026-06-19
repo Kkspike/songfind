@@ -79,27 +79,38 @@ export class LidarrService {
       metadataProfiles.find((p) => p.name.toLowerCase() === 'standard') ?? metadataProfiles[0];
     if (!metadataProfile) throw new Error('No Lidarr metadata profile found');
 
-    // monitor:'all' keeps the artist monitored (monitor:'none' forces artist.monitored=false in Lidarr).
-    // searchForMissingAlbums:false prevents automatic searches — we trigger the target album search manually.
+    // monitor:'none' so no albums are auto-monitored and no searches fire.
+    // We will set artist.monitored=true ourselves — but only AFTER RefreshArtist completes,
+    // because RefreshArtist resets the flag while it's running.
     const { data: created } = await http.post<LidarrArtist>('/artist', {
       ...best,
       monitored: true,
       rootFolderPath: rootFolder.path,
       qualityProfileId: rootFolder.defaultQualityProfileId,
       metadataProfileId: metadataProfile.id,
-      addOptions: { monitor: 'all', searchForMissingAlbums: false },
+      addOptions: { monitor: 'none', searchForMissingAlbums: false },
     });
 
-    // Trigger a refresh so Lidarr fetches full album metadata and indexes tracks
-    await http.post('/command', { name: 'RefreshArtist', artistId: created.id });
-    this.logger.log(`RefreshArtist triggered for "${artistName}" (id=${created.id}), waiting for albums…`);
-    for (let i = 0; i < 5; i++) {
+    // Trigger RefreshArtist and poll until it completes — do NOT set monitored while it's running.
+    const { data: refreshCmd } = await http.post<{ id: number; status: string }>(
+      '/command',
+      { name: 'RefreshArtist', artistId: created.id },
+    );
+    this.logger.log(`RefreshArtist triggered for "${artistName}" (commandId=${refreshCmd.id}), waiting for completion…`);
+    for (let i = 0; i < 30; i++) {
       await new Promise((r) => setTimeout(r, 2000));
-      const { data: albums } = await http.get<{ id: number }[]>('/album', { params: { artistId: created.id } });
-      if (albums?.length) {
-        this.logger.log(`Albums ready after ${(i + 1) * 2}s — ${albums.length} albums`);
+      const { data: cmd } = await http.get<{ status: string }>(`/command/${refreshCmd.id}`);
+      if (cmd.status === 'completed' || cmd.status === 'failed') {
+        this.logger.log(`RefreshArtist ${cmd.status} after ${(i + 1) * 2}s`);
         break;
       }
+    }
+
+    // Now that RefreshArtist is done, set artist as monitored — it won't get reset anymore.
+    const { data: artistNow } = await http.get<LidarrArtist>(`/artist/${created.id}`);
+    if (!artistNow.monitored) {
+      this.logger.log(`Setting artist "${artistName}" as monitored after refresh completion`);
+      await http.put(`/artist/${created.id}`, { ...artistNow, monitored: true });
     }
 
     return { ...created, monitored: true };
