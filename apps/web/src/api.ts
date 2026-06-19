@@ -30,6 +30,8 @@ export interface Track {
   title: string;
   status: 'missing' | 'owned' | 'available_on_azuracast' | 'acquiring' | 'needs_approval';
   artist: Artist;
+  libraryFiles: Array<{ id: string }>;
+  azuracastTracks: Array<{ id: string }>;
 }
 
 export interface SongListItem {
@@ -194,6 +196,10 @@ export const api = {
   },
   nasDownloadUrl: (id: string) => `${API_BASE}/library/${id}/download`,
   azuracastDownloadUrl: (id: string) => `${API_BASE}/library/azuracast/${id}/download`,
+  // Same URLs work for streaming playback — browsers play audio regardless of Content-Disposition
+  nasStreamUrl: (id: string) => `${API_BASE}/library/${id}/download`,
+  azuracastStreamUrl: (id: string) => `${API_BASE}/library/azuracast/${id}/download`,
+  getLibraryStats: () => request<{ nasCount: number; azuracastCount: number }>('/library/stats'),
 
   testLidarr: () => request<TestResult>('/settings/test/lidarr', { method: 'POST' }),
   testProwlarr: () => request<TestResult>('/settings/test/prowlarr', { method: 'POST' }),

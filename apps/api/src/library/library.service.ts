@@ -37,6 +37,14 @@ type SourceFilter = 'all' | 'nas' | 'azuracast';
 export class LibraryService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async stats(): Promise<{ nasCount: number; azuracastCount: number }> {
+    const [nasCount, azuracastCount] = await Promise.all([
+      this.prisma.libraryFile.count(),
+      this.prisma.azuracastTrack.count(),
+    ]);
+    return { nasCount, azuracastCount };
+  }
+
   async search(
     q?: string,
     source: SourceFilter = 'all',

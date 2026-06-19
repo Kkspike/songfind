@@ -28,7 +28,15 @@ export class ListsService {
       include: {
         items: {
           orderBy: { position: 'asc' },
-          include: { track: { include: { artist: true } } },
+          include: {
+            track: {
+              include: {
+                artist: true,
+                libraryFiles: { take: 1, select: { id: true } },
+                azuracastTracks: { take: 1, select: { id: true } },
+              },
+            },
+          },
         },
       },
     });

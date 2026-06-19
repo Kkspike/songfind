@@ -25,6 +25,11 @@ export class LibraryController {
     private readonly prisma: PrismaService,
   ) {}
 
+  @Get('stats')
+  stats() {
+    return this.library.stats();
+  }
+
   @Get()
   search(
     @Query('q') q?: string,

@@ -3,6 +3,36 @@ import { Link, useParams } from 'react-router-dom';
 import { api, type SongListDetail, type SongListItem } from '../api';
 import { StatusBadge } from '../components/Badge';
 
+function PlayButton({ url }: { url: string }) {
+  const [open, setOpen] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  function toggle() {
+    if (!open) {
+      setOpen(true);
+      setTimeout(() => audioRef.current?.play(), 0);
+    } else {
+      audioRef.current?.pause();
+      setOpen(false);
+    }
+  }
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <button type="button" className="btn-sm" onClick={toggle} title={open ? 'Stop' : 'Play'}>
+        {open ? '⏹' : '▶'}
+      </button>
+      {open && (
+        <audio
+          ref={audioRef}
+          src={url}
+          controls
+          onEnded={() => setOpen(false)}
+          style={{ height: 28, width: 160, verticalAlign: 'middle' }}
+        />
+      )}
+    </span>
+  );
+}
+
 type SortKey = 'position' | 'artist' | 'title' | 'status';
 type SortOrder = 'asc' | 'desc';
 
@@ -244,6 +274,12 @@ export default function ListDetailPage() {
                       >
                         {busy[item.track.id] ? 'Checking…' : 'Check status'}
                       </button>
+                    )}
+                    {item.track.status === 'owned' && item.track.libraryFiles[0] && (
+                      <PlayButton url={api.nasStreamUrl(item.track.libraryFiles[0].id)} />
+                    )}
+                    {item.track.status === 'available_on_azuracast' && item.track.azuracastTracks[0] && (
+                      <PlayButton url={api.azuracastStreamUrl(item.track.azuracastTracks[0].id)} />
                     )}
                     {item.track.status === 'needs_approval' && (
                       <Link to="/activity" style={{ fontSize: 13 }}>

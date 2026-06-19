@@ -18,6 +18,7 @@ export default function LibraryPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<{ nasCount: number; azuracastCount: number } | null>(null);
 
   const fetchSeq = useRef(0);
 
@@ -38,6 +39,10 @@ export default function LibraryPage() {
     } finally {
       if (seq === fetchSeq.current) setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    api.getLibraryStats().then(setStats).catch(() => {});
   }, []);
 
   useEffect(() => { doFetch(query, source, page, sort, order); }, [source, page, sort, order]);
@@ -83,9 +88,19 @@ export default function LibraryPage() {
     );
   }
 
+  const fmt = (n: number) => n.toLocaleString();
+
   return (
     <div>
       <h1>Library</h1>
+
+      {stats && (
+        <div style={{ display: 'flex', gap: 24, marginBottom: 16, fontSize: 13, color: 'var(--text-muted)' }}>
+          <span>NAS <strong style={{ color: 'var(--text-heading)' }}>{fmt(stats.nasCount)}</strong></span>
+          <span>Azuracast <strong style={{ color: 'var(--text-heading)' }}>{fmt(stats.azuracastCount)}</strong></span>
+          <span>Total <strong style={{ color: 'var(--text-heading)' }}>{fmt(stats.nasCount + stats.azuracastCount)}</strong></span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <input
@@ -100,20 +115,24 @@ export default function LibraryPage() {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
         <div className="btn-row" style={{ gap: 4 }}>
-          {(['all', 'nas', 'azuracast'] as SourceFilter[]).map((f) => (
+          {([
+            { key: 'all', label: stats ? `All (${fmt(stats.nasCount + stats.azuracastCount)})` : 'All' },
+            { key: 'nas', label: stats ? `NAS (${fmt(stats.nasCount)})` : 'NAS' },
+            { key: 'azuracast', label: stats ? `Azuracast (${fmt(stats.azuracastCount)})` : 'Azuracast' },
+          ] as { key: SourceFilter; label: string }[]).map(({ key, label }) => (
             <button
-              key={f}
+              key={key}
               type="button"
-              className={source === f ? 'btn-primary btn-sm' : 'btn-sm'}
-              onClick={() => handleSource(f)}
+              className={source === key ? 'btn-primary btn-sm' : 'btn-sm'}
+              onClick={() => handleSource(key)}
             >
-              {f === 'all' ? 'All' : f === 'nas' ? 'NAS' : 'Azuracast'}
+              {label}
             </button>
           ))}
         </div>
         {!loading && total > 0 && (
           <span className="meta" style={{ marginBottom: 0 }}>
-            {total} result{total !== 1 ? 's' : ''}
+            {fmt(total)} result{total !== 1 ? 's' : ''}
           </span>
         )}
       </div>
@@ -131,57 +150,45 @@ export default function LibraryPage() {
                   <SortHeader col="artist" label="Artist" />
                   <SortHeader col="title" label="Title" />
                   <SortHeader col="album" label="Album" />
-                  <th></th>
+                  <th style={{ width: 130 }}></th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((r) => (
-                  <tr key={`${r.source}-${r.id}`}>
-                    <td>
-                      <SourceBadgeWithTooltip entry={r} />
-                    </td>
-                    <td style={{ color: 'var(--text-heading)' }}>{r.artist}</td>
-                    <td>{r.title}</td>
-                    <td style={{ color: 'var(--text-muted)' }}>{r.album ?? '—'}</td>
-                    <td style={{ textAlign: 'right', width: 90 }}>
-                      {r.source === 'nas' && (
-                        <a href={api.nasDownloadUrl(r.id)} download={r.filename ?? undefined}>
-                          <button type="button" className="btn-sm">Download</button>
-                        </a>
-                      )}
-                      {r.source === 'azuracast' && r.uniqueId && (
-                        <a href={api.azuracastDownloadUrl(r.id)} download>
-                          <button type="button" className="btn-sm">Download</button>
-                        </a>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {items.map((r) => {
+                  const streamUrl = r.source === 'nas'
+                    ? api.nasStreamUrl(r.id)
+                    : r.uniqueId ? api.azuracastStreamUrl(r.id) : null;
+                  const downloadUrl = r.source === 'nas'
+                    ? api.nasDownloadUrl(r.id)
+                    : r.uniqueId ? api.azuracastDownloadUrl(r.id) : null;
+                  return (
+                    <tr key={`${r.source}-${r.id}`}>
+                      <td><SourceBadgeWithTooltip entry={r} /></td>
+                      <td style={{ color: 'var(--text-heading)' }}>{r.artist}</td>
+                      <td>{r.title}</td>
+                      <td style={{ color: 'var(--text-muted)' }}>{r.album ?? '—'}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+                          {streamUrl && <PlayButton url={streamUrl} />}
+                          {downloadUrl && (
+                            <a href={downloadUrl} download={r.filename ?? undefined}>
+                              <button type="button" className="btn-sm">↓</button>
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           {totalPages > 1 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
-              <button
-                type="button"
-                className="btn-sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                ← Prev
-              </button>
-              <span className="meta" style={{ marginBottom: 0 }}>
-                Page {page} / {totalPages}
-              </span>
-              <button
-                type="button"
-                className="btn-sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next →
-              </button>
+              <button type="button" className="btn-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>← Prev</button>
+              <span className="meta" style={{ marginBottom: 0 }}>Page {page} / {totalPages}</span>
+              <button type="button" className="btn-sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next →</button>
             </div>
           )}
         </>
@@ -205,14 +212,42 @@ function SourceBadgeWithTooltip({ entry }: { entry: LibraryEntry }) {
     if (entry.path) parts.push(`Path: ${entry.path}`);
     tooltip = parts.length > 0 ? parts.join('\n') : 'Azuracast';
   }
+  return (
+    <span className={`badge ${isNas ? 'badge-nas' : 'badge-azuracast'}`} title={tooltip} style={{ cursor: 'default' }}>
+      {isNas ? 'NAS' : 'Azuracast'}
+    </span>
+  );
+}
+
+function PlayButton({ url }: { url: string }) {
+  const [open, setOpen] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  function toggle() {
+    if (!open) {
+      setOpen(true);
+      // autoplay after mount — give React a tick to render the element
+      setTimeout(() => audioRef.current?.play(), 0);
+    } else {
+      audioRef.current?.pause();
+      setOpen(false);
+    }
+  }
 
   return (
-    <span
-      className={`badge ${isNas ? 'badge-nas' : 'badge-azuracast'}`}
-      title={tooltip}
-      style={{ cursor: 'default' }}
-    >
-      {isNas ? 'NAS' : 'Azuracast'}
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <button type="button" className="btn-sm" onClick={toggle} title={open ? 'Stop' : 'Play'}>
+        {open ? '⏹' : '▶'}
+      </button>
+      {open && (
+        <audio
+          ref={audioRef}
+          src={url}
+          controls
+          onEnded={() => setOpen(false)}
+          style={{ height: 28, width: 180, verticalAlign: 'middle' }}
+        />
+      )}
     </span>
   );
 }
